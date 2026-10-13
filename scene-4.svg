@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000">
+  <defs>
+    <linearGradient id="sky4" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#eaf5ff"/>
+      <stop offset="52%" stop-color="#bcd9f4"/>
+      <stop offset="100%" stop-color="#edf5ff"/>
+    </linearGradient>
+    <linearGradient id="sea4" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5f9ecf"/>
+      <stop offset="100%" stop-color="#1a4677"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#sky4)"/>
+  <circle cx="1210" cy="180" r="120" fill="#fffef8" opacity="0.8"/>
+  <g fill="#ffffff" opacity="0.75">
+    <ellipse cx="260" cy="252" rx="150" ry="42"/>
+    <ellipse cx="520" cy="268" rx="140" ry="40"/>
+    <ellipse cx="770" cy="244" rx="180" ry="50"/>
+    <ellipse cx="1170" cy="260" rx="220" ry="56"/>
+  </g>
+  <rect y="430" width="1600" height="570" fill="url(#sea4)"/>
+  <path d="M0 612C138 578 238 560 346 592C468 626 560 620 670 600C802 576 900 528 1040 542C1172 556 1308 634 1454 632C1510 632 1566 628 1600 624V1000H0Z" fill="#93bfd8" opacity="0.74"/>
+  <path d="M0 728C176 700 294 704 430 738C582 776 700 790 836 772C978 754 1110 716 1232 724C1368 734 1486 790 1600 788V1000H0Z" fill="#496f96" opacity="0.82"/>
+  <g fill="none" stroke="#edf8ff" stroke-width="4" opacity="0.72">
+    <path d="M0 726C180 710 320 720 520 756C710 788 866 782 1044 752C1200 724 1378 734 1600 770"/>
+    <path d="M0 814C172 798 316 810 514 842C682 870 838 874 1010 842C1190 810 1346 818 1600 860"/>
+  </g>
+</svg>

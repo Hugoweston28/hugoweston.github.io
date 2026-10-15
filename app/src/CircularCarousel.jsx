@@ -45,6 +45,7 @@ export default function CircularCarousel({
 
   useEffect(() => {
     const state = settingsRef.current;
+    const host = ringRef.current ? ringRef.current.closest('.circular-carousel') : null;
     let frame = 0;
     let previous = 0;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -75,8 +76,39 @@ export default function CircularCarousel({
       }
       frame = window.requestAnimationFrame(animate);
     };
-    frame = window.requestAnimationFrame(animate);
-    return () => window.cancelAnimationFrame(frame);
+    const startLoop = () => {
+      if (frame) return;
+      previous = 0;
+      frame = window.requestAnimationFrame(animate);
+    };
+    const stopLoop = () => {
+      if (!frame) return;
+      window.cancelAnimationFrame(frame);
+      frame = 0;
+    };
+    startLoop();
+    // 轮播滚出视口后就不再逐帧写 transform 了。原来的 rAF 从挂载起一直跑到卸载，
+    // 即使整块已经在屏幕外，也照样每秒触发一次 setActive 重渲染 ——
+    // 页面往下滚的时候，这些白干的活儿会直接变成掉帧。
+    let observer = null;
+    if (host && 'IntersectionObserver' in window) {
+      observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            startLoop();
+          } else {
+            stopLoop();
+            state.velocity = 0;
+            state.target = null;
+          }
+        });
+      }, { threshold: 0 });
+      observer.observe(host);
+    }
+    return () => {
+      stopLoop();
+      if (observer) observer.disconnect();
+    };
   }, [autoplay, items.length, loaded, pauseOnHover, sign, speed, step, stretch]);
 
   const focusIndex = (index) => {

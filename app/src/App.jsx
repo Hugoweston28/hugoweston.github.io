@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import DepthCarousel from './DepthCarousel.jsx';
 import GuessNumber from './GuessNumber.jsx';
+import Echo from './Echo.jsx';
+
 import CyberRain from './CyberRain.jsx';
 import useSiteFx from './useSiteFx.js';
 import CountUp from './CountUp.jsx';
@@ -213,6 +215,7 @@ function CharacterWave({ text, className, delayOffset = 0 }) {
 
 function Hero() {
   const videoRef = useRef(null);
+  const heroRef = useRef(null);
   const [videoReady, setVideoReady] = useState(false);
 
   // 微信 / QQ 内置浏览器（腾讯 X5）对"页面内自动播放的背景视频"限制很严：
@@ -292,8 +295,33 @@ function Hero() {
     };
   }, []);
 
+  // 首屏滚出视口后就让背景视频停下来。
+  // 这段 1080p 视频一直在解码、并且一直往 z-index:-2 那层合成，往下滚动时
+  // 它把每一帧的预算吃掉一大块；离开视口即暂停，滚回来再续播。
+  // 顺手给 .hero 挂 is-offscreen，让 CSS 把封面层（.hero-backdrop）的常驻漂移也暂停。
+  useEffect(() => {
+    const hero = heroRef.current;
+    if (!hero || !('IntersectionObserver' in window)) return undefined;
+    const video = videoRef.current;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        const offscreen = !entry.isIntersecting;
+        hero.classList.toggle('is-offscreen', offscreen);
+        if (!video) return;
+        if (offscreen) {
+          if (!video.paused) video.pause();
+        } else if (video.paused) {
+          const promise = video.play();
+          if (promise && typeof promise.catch === 'function') promise.catch(() => {});
+        }
+      });
+    }, { threshold: 0.01 });
+    observer.observe(hero);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <section className="hero" id="top" aria-labelledby="hero-title">
+    <section className="hero" id="top" aria-labelledby="hero-title" ref={heroRef}>
       <div className="hero-backdrop" style={{ backgroundImage: `url(${asset('/hero-poster.jpg')})` }} aria-hidden="true" />
       {/* 淡入、滤镜、视差漂移都挂在这一层，<video> 只负责 object-fit: cover：
           X5 会特殊对待 <video> 本身，越朴素越不容易被拎进原生层。 */}
@@ -818,6 +846,11 @@ export default function App() {
     // （--pointer-speed、--pointer-angle）做速度响应：鼠标越快，光晕越大越亮、
     // 光环沿运动方向被拉长、光尾被拖出来；停下 200ms 后回到安静状态。
     const root = document.documentElement;
+    // 特效变量不再写 :root：根元素上的自定义属性每帧变化，会让整棵文档树
+    // 重新计算样式（页面越大越贵）。只写到 .pointer-fx —— 光晕 / 光尾 / 粒子
+    // 都挂在这一层里，继承范围缩到十几个节点，鼠标狂甩也不会拖慢主线程。
+    const fx = document.querySelector('.pointer-fx') || root;
+    const heroVideoLayer = document.querySelector('.hero-video-layer');
     let frame = 0;
     let idle = 0;
     let pointerX = 0;
@@ -843,17 +876,20 @@ export default function App() {
       if (frame) return;
       frame = window.requestAnimationFrame(() => {
         frame = 0;
-        root.style.setProperty('--pointer-x', `${pointerX}px`);
-        root.style.setProperty('--pointer-y', `${pointerY}px`);
-        root.style.setProperty('--pointer-speed', speed.toFixed(3));
-        root.style.setProperty('--pointer-angle', `${angle}deg`);
-        root.style.setProperty('--hero-drift-x', `${(pointerX / window.innerWidth - 0.5) * -22}px`);
-        root.style.setProperty('--hero-drift-y', `${(pointerY / window.innerHeight - 0.5) * -14}px`);
+        fx.style.setProperty('--pointer-x', `${pointerX}px`);
+        fx.style.setProperty('--pointer-y', `${pointerY}px`);
+        fx.style.setProperty('--pointer-speed', speed.toFixed(3));
+        fx.style.setProperty('--pointer-angle', `${angle}deg`);
+        if (heroVideoLayer) {
+          // 首屏背景的视差漂移变量同理只写在那张视频层上，不惊动整棵文档树
+          heroVideoLayer.style.setProperty('--hero-drift-x', `${(pointerX / window.innerWidth - 0.5) * -22}px`);
+          heroVideoLayer.style.setProperty('--hero-drift-y', `${(pointerY / window.innerHeight - 0.5) * -14}px`);
+        }
         root.classList.toggle('is-pointer-moving', speed > 0.06);
         window.clearTimeout(idle);
         idle = window.setTimeout(() => {
           speed = 0;
-          root.style.setProperty('--pointer-speed', '0');
+          fx.style.setProperty('--pointer-speed', '0');
           root.classList.remove('is-pointer-moving');
         }, 200);
       });
@@ -922,27 +958,29 @@ export default function App() {
   }, [entered]);
 
   return <div className={`site-shell ${entered ? 'is-ready' : ''}`}>
-    <div className="cursor-aura" aria-hidden="true" />
-    <div className="cursor-particles" aria-hidden="true">
-      {particles.map((p) => (
-        <span
-          key={p.id}
-          className={p.white ? 'cursor-particle is-white' : 'cursor-particle'}
-          style={{
-            left: `${p.x}px`,
-            top: `${p.y}px`,
-            width: `${p.size}px`,
-            height: `${p.size}px`,
-            '--drift': `${p.drift}px`,
-            '--fall': `${p.fall}px`,
-            animationDuration: `${p.life}ms`,
-          }}
-          onAnimationEnd={() => setParticles((prev) => prev.filter((item) => item.id !== p.id))}
-        />
-      ))}
+    <div className="pointer-fx" aria-hidden="true">
+      <div className="cursor-aura" />
+      <div className="cursor-particles">
+        {particles.map((p) => (
+          <span
+            key={p.id}
+            className={p.white ? 'cursor-particle is-white' : 'cursor-particle'}
+            style={{
+              left: `${p.x}px`,
+              top: `${p.y}px`,
+              width: `${p.size}px`,
+              height: `${p.size}px`,
+              '--drift': `${p.drift}px`,
+              '--fall': `${p.fall}px`,
+              animationDuration: `${p.life}ms`,
+            }}
+            onAnimationEnd={() => setParticles((prev) => prev.filter((item) => item.id !== p.id))}
+          />
+        ))}
+      </div>
     </div>
     <Hero />
-    <main><About /><Projects /><GuessNumber /><MusicShowcase /><ArtworkShowcase /><PhotographyShowcase /><Strengths /></main>
+    <main><About /><Projects /><GuessNumber /><Echo /><MusicShowcase /><ArtworkShowcase /><PhotographyShowcase /><Strengths /></main>
     <Contact />
     {!entered && <EntryGate onEnter={() => setEntered(true)} />}
   </div>;

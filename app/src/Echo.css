@@ -1,0 +1,42 @@
+/* 「回声」区块——PLAYGROUND 系列第二作，接着 .game-section 往下排。
+   这里只写专属样式；.game-kicker / .game-intro / .game-panel / .panel-top /
+   .feedback / .panel-bottom / .attempt-counter / .restart-button / .submit-button
+   都复用 GuessNumber.css 里已有的定义，保证两个游戏面板长得是同一套东西。 */
+.echo-section { position: relative; overflow: hidden; isolation: isolate; background: linear-gradient(155deg, #141213, #1a1417 58%, #221013); border-bottom: 1px solid rgba(237,51,66,.12); }
+.echo-section::before { content: ''; position: absolute; z-index: -1; inset: 0; opacity: .3; pointer-events: none; background: radial-gradient(ellipse at 78% 16%, rgba(240,200,183,.16), transparent 52%); }
+.echo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; margin-top: 8px; }
+
+/* 下面三条是 PLAYGROUND 各游戏共用的说明区样式（猜数字与「回声」都在用），
+   所以用 .game- 前缀而不是 .echo-，与 GuessNumber.css 里的 .game-kicker 等是同一套。 */
+.game-rules { display: grid; gap: 11px; margin: 26px 0 0; padding: 0; list-style: none; color: #aaa6a4; font-size: 13px; line-height: 1.7; }
+.game-rules li { display: flex; align-items: baseline; gap: 12px; }
+.game-rules li span { flex: 0 0 auto; color: var(--red); font: 11px var(--mono); letter-spacing: 1.4px; }
+.game-actions { display: flex; align-items: center; gap: 18px; margin-top: 36px; flex-wrap: wrap; }
+.game-note { max-width: 300px; color: var(--muted); font-size: 11px; line-height: 1.8; }
+
+.echo-panel { display: grid; align-content: start; }
+.echo-progress { display: flex; flex-wrap: wrap; gap: 6px; min-height: 10px; margin: 4px 0 22px; }
+.echo-progress span { width: 100%; max-width: 26px; height: 3px; flex: 1 1 14px; border-radius: 2px; background: rgba(241,239,237,.14); transition: background .18s ease, box-shadow .18s ease; }
+.echo-progress span.is-done { background: var(--red); box-shadow: 0 0 10px rgba(237,51,66,.7); }
+
+.echo-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.echo-key { display: grid; place-items: center; gap: 5px; min-height: 96px; padding: 14px 8px; border: 1px solid var(--line); border-radius: 6px; background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(0,0,0,.26)); color: #c9c4c2; cursor: pointer; font-family: var(--mono); touch-action: manipulation; -webkit-user-select: none; user-select: none; transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, color .18s ease, transform .18s ease; }
+.echo-key b { font: 500 22px/1 var(--mono); letter-spacing: 0; }
+.echo-key i { color: var(--muted); font: 400 9px var(--mono); font-style: normal; letter-spacing: 1.6px; }
+.echo-key:hover { border-color: rgba(237,51,66,.45); color: var(--paper); }
+.echo-key:focus-visible { outline: none; border-color: rgba(237,51,66,.7); box-shadow: 0 0 0 1px rgba(237,51,66,.35); }
+.echo-key.is-lit { border-color: var(--red); color: var(--paper); background: rgba(227,59,50,.2); box-shadow: 0 0 26px rgba(237,51,66,.42), inset 0 0 20px rgba(237,51,66,.2); transform: translateY(-2px); }
+.echo-key.is-lit i { color: #ffd8d6; }
+/* 最高的那个音用白色收尾，正好呼应站点里白 / 红两种星屑的搭配 */
+.echo-key.is-high.is-lit { border-color: #fdfdff; background: rgba(255,255,255,.13); box-shadow: 0 0 26px rgba(255,255,255,.46), inset 0 0 20px rgba(255,255,255,.2); }
+.echo-key.is-high.is-lit i { color: #fdfdff; }
+
+@media (max-width: 900px) {
+  .echo-grid { grid-template-columns: 1fr; gap: 30px; }
+  .game-actions { margin-top: 26px; }
+}
+@media (max-width: 680px) {
+  .echo-key { min-height: 84px; }
+  .echo-key b { font-size: 19px; }
+  .game-note { max-width: none; }
+}

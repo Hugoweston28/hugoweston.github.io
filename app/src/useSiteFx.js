@@ -66,10 +66,15 @@ export default function useSiteFx(entered) {
     // 手机 / 平板（无 hover 的粗指针）走触摸特效，与鼠标特效互斥
     const coarse = window.matchMedia('(hover: none), (pointer: coarse)').matches;
 
+    // 指针 / 触摸特效的宿主：所有特效节点都塞进页面里的 .pointer-fx 层，
+    // --pointer-* / --touch-* 这些每帧都在变的变量只写在这个容器上。
+    // 写在 :root 上的话，一次变量更新会让整棵文档树重新计算样式。
+    const fxHost = document.querySelector('.pointer-fx') || document.body;
+
     const ring = document.createElement('div');
     ring.className = 'cursor-ring';
     ring.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(ring);
+    fxHost.appendChild(ring);
     cleanups.push(() => ring.remove());
 
     // 光尾：5 颗珠子全部只靠 CSS 变量定位，用各自不同的 transition 时长做"跟随延迟"，
@@ -82,23 +87,19 @@ export default function useSiteFx(entered) {
       orb.className = 'cursor-trail-orb';
       trail.appendChild(orb);
     }
-    document.body.appendChild(trail);
+    fxHost.appendChild(trail);
     cleanups.push(() => trail.remove());
 
+    // 进度条与"返回顶部"合并成一个滚动处理，而且只在 rAF 里写样式：
+    // 原来两个监听各自去读 scrollHeight / scrollY，滚动时每帧都可能带上一次布局查询；
+    // 现在总高度交给 ResizeObserver 维护，滚动回调只读一个 scrollTop。
+    // 同时给 <html> 挂 is-scrolling —— CSS 借此在滚动期间撤下全屏混合层、
+    // 暂停首屏封面与光晕的常驻动画（掉帧最集中的几处都在那儿），停下 160ms 后自动摘掉。
+    const docEl = document.documentElement;
     const bar = document.createElement('div');
     bar.className = 'scroll-progress';
     bar.setAttribute('aria-hidden', 'true');
     document.body.appendChild(bar);
-    const onScroll = () => {
-      const h = document.documentElement;
-      const max = h.scrollHeight - h.clientHeight;
-      const pct = max > 0 ? (h.scrollTop / max) * 100 : 0;
-      bar.style.transform = `scaleX(${pct / 100})`;
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-    cleanups.push(() => window.removeEventListener('scroll', onScroll));
-
     const toTop = document.createElement('button');
     toTop.type = 'button';
     toTop.className = 'back-to-top';
@@ -106,10 +107,38 @@ export default function useSiteFx(entered) {
     toTop.innerHTML = '<span aria-hidden="true">↑</span>';
     toTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' }));
     document.body.appendChild(toTop);
-    const onScrollTop = () => toTop.classList.toggle('is-shown', window.scrollY > 600);
-    window.addEventListener('scroll', onScrollTop, { passive: true });
-    onScrollTop();
-    cleanups.push(() => { window.removeEventListener('scroll', onScrollTop); toTop.remove(); });
+    let scrollFrame = 0;
+    let scrollIdle = 0;
+    let scrollMax = 0;
+    const measureScroll = () => { scrollMax = docEl.scrollHeight - docEl.clientHeight; };
+    const paintScroll = () => {
+      scrollFrame = 0;
+      const top = docEl.scrollTop;
+      bar.style.transform = `scaleX(${scrollMax > 0 ? Math.min(top / scrollMax, 1) : 0})`;
+      toTop.classList.toggle('is-shown', top > 600);
+    };
+    const onScroll = () => {
+      docEl.classList.add('is-scrolling');
+      window.clearTimeout(scrollIdle);
+      scrollIdle = window.setTimeout(() => docEl.classList.remove('is-scrolling'), 160);
+      if (!scrollFrame) scrollFrame = window.requestAnimationFrame(paintScroll);
+    };
+    const scrollObserver = 'ResizeObserver' in window ? new ResizeObserver(measureScroll) : null;
+    if (scrollObserver) scrollObserver.observe(document.body);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', measureScroll, { passive: true });
+    measureScroll();
+    paintScroll();
+    cleanups.push(() => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', measureScroll);
+      if (scrollObserver) scrollObserver.disconnect();
+      window.clearTimeout(scrollIdle);
+      if (scrollFrame) window.cancelAnimationFrame(scrollFrame);
+      docEl.classList.remove('is-scrolling');
+      bar.remove();
+      toTop.remove();
+    });
 
     if (!reduced) {
       const interactives = document.querySelectorAll('a, button');
@@ -209,7 +238,7 @@ export default function useSiteFx(entered) {
       layer.appendChild(halo);
       layer.appendChild(streak);
       layer.appendChild(orbs);
-      document.body.appendChild(layer);
+      fxHost.appendChild(layer);
 
       const sparkHost = document.querySelector('.cursor-particles') || document.body;
       let frame = 0;
@@ -225,10 +254,11 @@ export default function useSiteFx(entered) {
 
       const paint = () => {
         frame = 0;
-        root.style.setProperty('--touch-x', `${touchX}px`);
-        root.style.setProperty('--touch-y', `${touchY}px`);
-        root.style.setProperty('--touch-speed', speed.toFixed(3));
-        root.style.setProperty('--touch-angle', `${angle}deg`);
+        // 同样写到触摸特效层本身，不写 :root：滑屏时这条通道每帧都在跑
+        layer.style.setProperty('--touch-x', `${touchX}px`);
+        layer.style.setProperty('--touch-y', `${touchY}px`);
+        layer.style.setProperty('--touch-speed', speed.toFixed(3));
+        layer.style.setProperty('--touch-angle', `${angle}deg`);
       };
 
       const onStart = (event) => {
@@ -284,7 +314,7 @@ export default function useSiteFx(entered) {
         window.clearTimeout(idle);
         idle = window.setTimeout(() => {
           speed = 0;
-          root.style.setProperty('--touch-speed', '0');
+          layer.style.setProperty('--touch-speed', '0');
         }, 220);
       };
 

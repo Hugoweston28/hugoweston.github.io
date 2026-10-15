@@ -30,6 +30,7 @@ export default function DepthCarousel({
   className = '',
 }) {
   const slides = useMemo(() => (Array.isArray(items) ? items : []).map(normalize), [items]);
+  const hostRef = useRef(null);
   const cardRefs = useRef([]);
   const overlayRefs = useRef([]);
   const tweenRef = useRef(null);
@@ -76,6 +77,29 @@ export default function DepthCarousel({
       }
     });
   }, [blur, count, depth, direction, duration, ease, falloff, loop, scale, spread, tilt, visibleCards]);
+
+  // 轮播不在视口里时，把卡片的 filter 卸成 none。
+  // filter 会让每张卡都变成独立的离屏合成层，10 张带 blur 的卡一起滚动，
+  // 每个滚动帧都要把它们重新采样一遍；离开视口就拆掉，回到视口再按当前布局装回去。
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || !('IntersectionObserver' in window)) return undefined;
+    let onScreen = true;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting === onScreen) return;
+        onScreen = entry.isIntersecting;
+        cardRefs.current.forEach((card) => {
+          if (!card) return;
+          if (onScreen) layout(activeRef.current, false);
+          else gsap.set(card, { filter: 'none' });
+        });
+      });
+    }, { threshold: 0 });
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [layout]);
+
 
   const goTo = useCallback((rawIndex, animate = true) => {
     if (!count) return;
@@ -152,6 +176,7 @@ export default function DepthCarousel({
 
   return (
     <div
+      ref={hostRef}
       className={`depth-carousel ${className}`.trim()}
       data-nosplit
       style={{ '--dc-perspective': `${perspective}px` }}

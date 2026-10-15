@@ -99,25 +99,53 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .scroll-hint i { display: block; width: 1px; height: 42px; background: linear-gradient(180deg, var(--red), transparent); animation: scroll-hint-pulse 2s ease-in-out infinite; transform-origin: top; }
 @keyframes scroll-hint-pulse { 0%, 100% { opacity: .3; transform: scaleY(.6); } 50% { opacity: 1; transform: scaleY(1); } }
 
-.cursor-aura { position: fixed; z-index: 60; top: var(--pointer-y, -300px); left: var(--pointer-x, -300px); width: 340px; aspect-ratio: 1; border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); background: radial-gradient(circle, rgba(255,42,58,.2), rgba(196,17,39,.08) 36%, transparent 71%); mix-blend-mode: screen; }
+/* ── 指针特效层（桌面）：光晕 / 光环 / 光尾都带速度响应 ──
+   --pointer-speed（0~1）与 --pointer-angle（移动方向角）由 App.jsx 平滑后写在 :root 上：
+   鼠标越快，光晕越大越亮、光环沿运动方向被拉长、光尾被拖出来；
+   停下 200ms 后 html.is-pointer-moving 被摘掉，光尾淡出、光晕回到安静状态。
+   全部只依赖 CSS 变量，不做逐帧 JS，滚动的页面也能保持 60fps。 */
+.cursor-aura { position: fixed; z-index: 60; top: var(--pointer-y, -300px); left: var(--pointer-x, -300px); width: clamp(220px, 22vw, 320px); aspect-ratio: 1; border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%) scale(calc(1 + var(--pointer-speed, 0) * .24)); opacity: .66; background: radial-gradient(circle, rgba(255,42,58,.24), rgba(196,17,39,.09) 37%, transparent 71%); mix-blend-mode: screen; transition: opacity .3s ease; }
+.cursor-aura::before { content: ''; position: absolute; inset: 40%; border-radius: 50%; background: radial-gradient(circle, rgba(255,104,116,.5), rgba(237,51,66,.14) 56%, transparent 74%); filter: blur(6px); opacity: calc(.34 + var(--pointer-speed, 0) * .52); }
+.cursor-aura::after { content: ''; position: absolute; inset: -4%; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0 56%, rgba(237,51,66,.3) 72%, transparent 87% 100%); animation: aura-sweep 4.6s linear infinite; opacity: calc(.28 + var(--pointer-speed, 0) * .72); }
+@keyframes aura-sweep { to { transform: rotate(360deg); } }
+html.is-pointer-moving .cursor-aura { opacity: 1; }
 .cursor-particles { position: fixed; z-index: 59; inset: 0; pointer-events: none; overflow: hidden; }
 .cursor-particle { position: absolute; border-radius: 50%; background: #ed3342; box-shadow: 0 0 12px rgba(237,51,66,.85); transform: translate(-50%, -50%); will-change: transform, opacity; animation: particle-fall linear forwards; }
+/* 白色颗粒：和红色火星按约 4:6 混着撒，暗底上更有"星屑"的层次 */
+.cursor-particle.is-white { background: #fdfdff; box-shadow: 0 0 12px rgba(255,255,255,.9); }
 @keyframes particle-fall {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(.6); }
   12% { opacity: .95; }
   100% { opacity: 0; transform: translate(calc(-50% + var(--drift)), calc(-50% + var(--fall))) scale(.2); }
 }
-.cursor-ring { position: fixed; z-index: 58; top: var(--pointer-y, -300px); left: var(--pointer-x, -300px); width: 34px; height: 34px; border: 1px solid rgba(237,51,66,.7); border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); transition: width .25s ease, height .25s ease, background .25s ease, border-color .25s ease, opacity .25s ease; }
-.cursor-ring.is-active { width: 56px; height: 56px; background: rgba(237,51,66,.08); border-color: rgba(237,51,66,.9); }
+/* 光尾：5 颗珠子只靠 --pointer-x/y 定位，用各自不同的 transition 时长做"跟随延迟"，
+   越靠后的珠子跟得越慢、越小越淡，于是鼠标划过时自然拉出一条彗尾。
+   因为位置全部来自 CSS 变量，这里零逐帧 JS，成本只有一次变量写入。 */
+.cursor-trail { position: fixed; z-index: 58; inset: 0; pointer-events: none; overflow: hidden; contain: paint; opacity: 0; transition: opacity .34s ease; }
+html.is-pointer-moving .cursor-trail { opacity: 1; }
+.cursor-trail-orb { position: absolute; top: 0; left: 0; width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(circle, rgba(255,88,100,.6), rgba(237,51,66,.14) 58%, transparent 76%); transform: translate3d(var(--pointer-x, -300px), var(--pointer-y, -300px), 0) translate(-50%, -50%); transition: transform .15s cubic-bezier(.22,.68,.28,1); }
+.cursor-trail-orb:nth-child(2) { width: 19px; height: 19px; opacity: .62; transition-duration: .27s; }
+.cursor-trail-orb:nth-child(3) { width: 15px; height: 15px; opacity: .44; transition-duration: .41s; }
+.cursor-trail-orb:nth-child(4) { width: 11px; height: 11px; opacity: .3; transition-duration: .56s; }
+.cursor-trail-orb:nth-child(5) { width: 8px; height: 8px; opacity: .2; transition-duration: .74s; }
+.cursor-ring { position: fixed; z-index: 58; top: var(--pointer-y, -300px); left: var(--pointer-x, -300px); width: 38px; height: 38px; border: 1px solid rgba(237,51,66,.72); border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%) rotate(var(--pointer-angle, 0deg)) scale(calc(1 + var(--pointer-speed, 0) * .85), calc(1 - var(--pointer-speed, 0) * .34)); box-shadow: 0 0 16px rgba(237,51,66, calc(.16 + var(--pointer-speed, 0) * .42)); transition: width .25s ease, height .25s ease, background .25s ease, border-color .25s ease, opacity .25s ease, box-shadow .25s ease; }
+.cursor-ring.is-active { width: 62px; height: 62px; background: rgba(237,51,66,.1); border-color: rgba(237,51,66,.95); }
 .scroll-progress { position: fixed; z-index: 70; top: 0; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, #8f1722, #ed3342); transform: scaleX(0); transform-origin: left; pointer-events: none; }
 .back-to-top { position: fixed; z-index: 65; right: 26px; bottom: 26px; width: 46px; height: 46px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.28); border-radius: 50%; background: rgba(12,10,10,.6); color: #f1efed; font-size: 18px; cursor: pointer; opacity: 0; visibility: hidden; transform: translateY(12px); transition: opacity .3s ease, transform .3s ease, visibility .3s, border-color .2s; backdrop-filter: blur(8px); }
 .back-to-top.is-shown { opacity: 1; visibility: visible; transform: translateY(0); }
 .back-to-top:hover { border-color: var(--red); color: #ff6157; }
-.click-ripple { position: fixed; z-index: 57; width: 10px; height: 10px; border: 1px solid rgba(237,51,66,.7); border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); animation: click-ripple .6s ease-out forwards; }
-@keyframes click-ripple { 0% { opacity: .8; transform: translate(-50%, -50%) scale(.4); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(6); } }
+/* 点击涟漪：三层同时炸开 —— 实圈（最大约 374px 直径）+ 外扩回声（约 578px）+ 中心柔光。
+   比原来那圈 60px 的小圆大得多；尺寸用 clamp 跟随视口，手机上同样明显。 */
+.click-ripple { position: fixed; z-index: 57; left: 0; top: 0; --ripple-size: clamp(22px, 5.6vmin, 34px); width: var(--ripple-size); height: var(--ripple-size); border: 2px solid rgba(237,51,66,.82); border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); animation: click-ripple .95s cubic-bezier(.18,.72,.22,1) forwards; }
+@keyframes click-ripple { 0% { opacity: .92; transform: translate(-50%, -50%) scale(.22); } 62% { opacity: .5; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(11); } }
+.click-ripple--echo { border-width: 1px; border-color: rgba(255,132,140,.55); animation-name: click-ripple-echo; animation-duration: 1.3s; }
+@keyframes click-ripple-echo { 0% { opacity: .6; transform: translate(-50%, -50%) scale(.5); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(17); } }
+.click-flash { position: fixed; z-index: 56; left: 0; top: 0; width: clamp(190px, 42vmin, 300px); height: clamp(190px, 42vmin, 300px); border-radius: 50%; pointer-events: none; background: radial-gradient(circle, rgba(255,54,70,.32), rgba(196,17,39,.1) 46%, transparent 72%); mix-blend-mode: screen; transform: translate(-50%, -50%); animation: click-flash .72s ease-out forwards; }
+@keyframes click-flash { 0% { opacity: .9; transform: translate(-50%, -50%) scale(.34); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.6); } }
 .main-nav a, .nav-contact { transition: color .2s ease; }
 .main-nav a.is-current { color: #ff6157; }
-.project-card { transform: perspective(1000px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)); transition: transform .25s ease; }
+/* 卡片立体跟手：--tilt-x/y 由鼠标位置给角度，--tilt-z 在悬停时把卡片抬起来一点 */
+.project-card { transform: perspective(1000px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateZ(var(--tilt-z, 0px)); transition: transform .25s ease; }
 .wordmark.is-pulse .wordmark-symbol { animation: logo-pulse .6s cubic-bezier(.34,1.56,.64,1); }
 @keyframes logo-pulse { 0% { transform: scale(1); text-shadow: none; } 40% { transform: scale(1.35); text-shadow: 0 0 22px rgba(237,51,66,.9); } 100% { transform: scale(1); text-shadow: none; } }
 .scramble-target { display: inline; }
@@ -426,7 +454,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .entry-tabs { width: 100%; justify-content: space-between; gap: 6px; }
   .entry-tabs button { gap: 5px; font-size: 8px; }
   .entry-hint { font-size: 9px; }
-  .cursor-aura { width: 190px; }
+  .cursor-aura { width: 150px; }
   .hero { min-height: 700px; height: 100svh; max-height: 900px; }
   .site-header { height: 73px; grid-template-columns: 1fr auto; }
   .wordmark { gap: 8px; font-size: 10px; letter-spacing: 1px; }
@@ -508,7 +536,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   [data-reveal] { opacity: 1; transform: none; }
   [data-reveal] .reveal-char { opacity: 1; transform: none; filter: none; transition: none; }
   .cyber-column { animation: none !important; opacity: .35; }
-  .cursor-aura { display: none; }
+  .cursor-aura, .cursor-trail, .touch-fx, .click-flash { display: none; }
   .project-slide { animation: none !important; opacity: 0; transform: none; }
   .project-slide:first-child { opacity: 1; }
   .artwork-glow, .artwork-mote { animation: none !important; }
@@ -517,4 +545,28 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .artwork-mark { animation: none !important; opacity: .45; }
 }
 .section-bignum { position: absolute; z-index: 0; top: 40px; right: 3%; color: rgba(241,239,237,.028); font: 700 300px/.8 var(--mono); pointer-events: none; user-select: none; }
-@media (hover: none) { .cursor-aura { display: none; } .cursor-ring { display: none; } }
+/* ── 手机 / 平板：桌面那套（光晕、光环、光尾）关掉，换成手指版 ──
+   指尖柔光 + 沿滑动方向的光带 + 三颗延迟跟随的珠子 + 被甩出去的星屑。
+   位置与速度全部来自 useSiteFx 写在 :root 上的 --touch-* 变量（touchmove，passive），
+   所以滑动/滚动时既不抢主线程，也完全不拦滚动。 */
+@media (hover: none) {
+  .cursor-aura, .cursor-ring, .cursor-trail { display: none; }
+  .touch-fx { position: fixed; z-index: 61; inset: 0; pointer-events: none; overflow: hidden; contain: paint; }
+  .touch-halo { position: absolute; top: 0; left: 0; width: clamp(118px, 34vmin, 176px); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, rgba(255,58,74,.34), rgba(196,17,39,.12) 42%, transparent 72%); mix-blend-mode: screen; opacity: 0; will-change: transform, opacity; transform: translate3d(var(--touch-x, -400px), var(--touch-y, -400px), 0) translate(-50%, -50%) scale(calc(1 + var(--touch-speed, 0) * .38)); transition: opacity .28s ease; }
+  html.is-touching .touch-halo { opacity: 1; }
+  .touch-streak { position: absolute; top: 0; left: 0; width: calc(7px + var(--touch-speed, 0) * 12px); height: calc(90px + var(--touch-speed, 0) * 300px); border-radius: 999px; background: linear-gradient(180deg, transparent, rgba(237,51,66,.4) 45%, transparent); filter: blur(6px); mix-blend-mode: screen; opacity: calc(var(--touch-speed, 0) * .85); will-change: transform, opacity, height; transform: translate3d(var(--touch-x, -400px), var(--touch-y, -400px), 0) translate(-50%, -50%) rotate(var(--touch-angle, 0deg)); }
+  .touch-trail { position: absolute; inset: 0; }
+  .touch-orb { position: absolute; top: 0; left: 0; width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle, rgba(255,96,108,.62), rgba(237,51,66,.14) 58%, transparent 76%); opacity: 0; transform: translate3d(var(--touch-x, -400px), var(--touch-y, -400px), 0) translate(-50%, -50%); transition: transform .17s ease-out, opacity .26s ease; }
+  .touch-orb:nth-child(2) { width: 13px; height: 13px; transition-duration: .3s; }
+  .touch-orb:nth-child(3) { width: 9px; height: 9px; transition-duration: .44s; }
+  html.is-touching .touch-orb:nth-child(1) { opacity: .92; }
+  html.is-touching .touch-orb:nth-child(2) { opacity: .55; }
+  html.is-touching .touch-orb:nth-child(3) { opacity: .3; }
+  .touch-spark { position: absolute; border-radius: 50%; background: #ff5d6c; box-shadow: 0 0 14px rgba(237,51,66,.9); transform: translate(-50%, -50%); pointer-events: none; animation: touch-spark-fly var(--spark-life, 900ms) cubic-bezier(.2,.7,.3,1) forwards; }
+  .touch-spark.is-white { background: #fdfdff; box-shadow: 0 0 14px rgba(255,255,255,.92); }
+}
+@keyframes touch-spark-fly {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.5); }
+  14% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--spark-x, 0px)), calc(-50% + var(--spark-y, 0px))) scale(.24); }
+}

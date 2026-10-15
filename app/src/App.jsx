@@ -758,22 +758,50 @@ export default function App() {
   useEffect(() => {
     if (!entered) return undefined;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+    // 手机（粗指针）用更省的节流与更小的池子，但粒子更大更亮，手指底下才看得见；
+    // 桌面则密一些、细一些。速度越快：粒子越大、被甩得越远、寿命略短。
+    const coarse = window.matchMedia('(hover: none), (pointer: coarse)').matches;
+    const interval = coarse ? 34 : 13;
+    const cap = coarse ? 90 : 180;
     let frame = 0;
     let x = 0;
     let y = 0;
+    let lastX = 0;
+    let lastY = 0;
+    let lastTime = 0;
+    let speed = 0;
     const spawn = () => {
       frame = 0;
       const now = performance.now();
-      if (now - lastSpawn.current < 18) return;
+      if (now - lastSpawn.current < interval) return;
       lastSpawn.current = now;
-      const id = particleId.current++;
-      const drift = (Math.random() * 2 - 1) * 64;
-      const fall = 70 + Math.random() * 110;
-      const size = 4 + Math.random() * 5;
-      const life = 900 + Math.random() * 700;
-      setParticles((prev) => (prev.length > 140 ? prev : [...prev, { id, x, y, drift, fall, size, life }]));
+      const dx = x - lastX;
+      const dy = y - lastY;
+      const len = Math.hypot(dx, dy) || 1;
+      const burst = speed > 0.55 ? 2 : 1;
+      const batch = [];
+      for (let i = 0; i < burst; i += 1) {
+        const id = particleId.current++;
+        // 星屑往"身后"飞：速度越大甩得越远，看着像被速度甩出去的一串火星
+        const throwOut = (26 + speed * 130) * (0.5 + Math.random());
+        const drift = -(dx / len) * throwOut + (Math.random() * 2 - 1) * 44;
+        const fall = -(dy / len) * (20 + speed * 90) * (0.4 + Math.random()) + 62 + Math.random() * 110 + speed * 60;
+        // 四成撒白色的星屑，其余还是红色火星：两种颜色叠在一起才像"星尘"
+        const white = Math.random() < 0.4;
+        const size = (white ? 3.2 + Math.random() * 4.4 : 4 + Math.random() * 5) * (1 + speed * 1.1);
+        const life = (900 + Math.random() * 700) * (1 - speed * 0.18);
+        batch.push({ id, x, y, drift, fall, size, life, white });
+      }
+      setParticles((prev) => (prev.length > cap ? prev : [...prev, ...batch]));
     };
     const handleMove = (event) => {
+      const now = performance.now();
+      const dist = Math.hypot(event.clientX - lastX, event.clientY - lastY);
+      const dt = Math.max(now - lastTime, 8);
+      lastX = event.clientX;
+      lastY = event.clientY;
+      lastTime = now;
+      speed = speed * 0.6 + Math.min(dist / dt / 1.6, 1) * 0.4;
       x = event.clientX;
       y = event.clientY;
       if (!frame) frame = window.requestAnimationFrame(spawn);
@@ -786,26 +814,55 @@ export default function App() {
   }, [entered]);
 
   useEffect(() => {
+    // 指针状态：坐标之外再算出"平滑后的移动速度与方向角"，供光晕 / 光环 / 光尾
+    // （--pointer-speed、--pointer-angle）做速度响应：鼠标越快，光晕越大越亮、
+    // 光环沿运动方向被拉长、光尾被拖出来；停下 200ms 后回到安静状态。
     const root = document.documentElement;
     let frame = 0;
+    let idle = 0;
     let pointerX = 0;
     let pointerY = 0;
+    let lastX = 0;
+    let lastY = 0;
+    let lastTime = 0;
+    let speed = 0;
+    let angle = 0;
     const handlePointerMove = (event) => {
+      if (event.pointerType === 'touch') return; // 触摸走 useSiteFx 里的 touchmove 通道
       pointerX = event.clientX;
       pointerY = event.clientY;
+      const now = performance.now();
+      const dt = Math.max(now - lastTime, 8);
+      const dx = pointerX - lastX;
+      const dy = pointerY - lastY;
+      lastX = pointerX;
+      lastY = pointerY;
+      lastTime = now;
+      speed = speed * 0.7 + Math.min(Math.hypot(dx, dy) / dt / 1.5, 1) * 0.3;
+      if (dx || dy) angle = (Math.atan2(dy, dx) * 180) / Math.PI;
       if (frame) return;
       frame = window.requestAnimationFrame(() => {
+        frame = 0;
         root.style.setProperty('--pointer-x', `${pointerX}px`);
         root.style.setProperty('--pointer-y', `${pointerY}px`);
-        root.style.setProperty('--hero-drift-x', `${(pointerX / window.innerWidth - 0.5) * -12}px`);
-        root.style.setProperty('--hero-drift-y', `${(pointerY / window.innerHeight - 0.5) * -8}px`);
-        frame = 0;
+        root.style.setProperty('--pointer-speed', speed.toFixed(3));
+        root.style.setProperty('--pointer-angle', `${angle}deg`);
+        root.style.setProperty('--hero-drift-x', `${(pointerX / window.innerWidth - 0.5) * -22}px`);
+        root.style.setProperty('--hero-drift-y', `${(pointerY / window.innerHeight - 0.5) * -14}px`);
+        root.classList.toggle('is-pointer-moving', speed > 0.06);
+        window.clearTimeout(idle);
+        idle = window.setTimeout(() => {
+          speed = 0;
+          root.style.setProperty('--pointer-speed', '0');
+          root.classList.remove('is-pointer-moving');
+        }, 200);
       });
     };
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
     return () => {
       window.removeEventListener('pointermove', handlePointerMove);
       if (frame) window.cancelAnimationFrame(frame);
+      window.clearTimeout(idle);
     };
   }, []);
 
@@ -870,7 +927,7 @@ export default function App() {
       {particles.map((p) => (
         <span
           key={p.id}
-          className="cursor-particle"
+          className={p.white ? 'cursor-particle is-white' : 'cursor-particle'}
           style={{
             left: `${p.x}px`,
             top: `${p.y}px`,

@@ -63,12 +63,27 @@ export default function useSiteFx(entered) {
     if (!entered) return undefined;
     const cleanups = [];
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // 手机 / 平板（无 hover 的粗指针）走触摸特效，与鼠标特效互斥
+    const coarse = window.matchMedia('(hover: none), (pointer: coarse)').matches;
 
     const ring = document.createElement('div');
     ring.className = 'cursor-ring';
     ring.setAttribute('aria-hidden', 'true');
     document.body.appendChild(ring);
     cleanups.push(() => ring.remove());
+
+    // 光尾：5 颗珠子全部只靠 CSS 变量定位，用各自不同的 transition 时长做"跟随延迟"，
+    // 所以不需要逐帧 JS；指针停下后整层淡出（html.is-pointer-moving）。
+    const trail = document.createElement('div');
+    trail.className = 'cursor-trail';
+    trail.setAttribute('aria-hidden', 'true');
+    for (let i = 0; i < 5; i += 1) {
+      const orb = document.createElement('span');
+      orb.className = 'cursor-trail-orb';
+      trail.appendChild(orb);
+    }
+    document.body.appendChild(trail);
+    cleanups.push(() => trail.remove());
 
     const bar = document.createElement('div');
     bar.className = 'scroll-progress';
@@ -103,9 +118,11 @@ export default function useSiteFx(entered) {
         const onEnter = () => ring.classList.add('is-active');
         const onMove = (e) => {
           const r = el.getBoundingClientRect();
-          const dx = (e.clientX - (r.left + r.width / 2)) * 0.18;
-          const dy = (e.clientY - (r.top + r.height / 2)) * 0.18;
-          el.style.transform = `translate(${Math.max(-5, Math.min(5, dx))}px, ${Math.max(-5, Math.min(5, dy))}px)`;
+          const dx = (e.clientX - (r.left + r.width / 2)) * 0.24;
+          const dy = (e.clientY - (r.top + r.height / 2)) * 0.24;
+          // 磁吸幅度跟着元素尺寸走：小按钮别被推 9px，大卡片才吃得下
+          const reach = Math.min(9, Math.max(3, r.width * 0.06));
+          el.style.transform = `translate(${Math.max(-reach, Math.min(reach, dx))}px, ${Math.max(-reach, Math.min(reach, dy))}px)`;
         };
         const onLeave = () => { ring.classList.remove('is-active'); el.style.transform = ''; };
         el.addEventListener('mouseenter', onEnter);
@@ -123,12 +140,15 @@ export default function useSiteFx(entered) {
           const r = card.getBoundingClientRect();
           const px = (e.clientX - r.left) / r.width - 0.5;
           const py = (e.clientY - r.top) / r.height - 0.5;
-          card.style.setProperty('--tilt-x', `${-py * 7}deg`);
-          card.style.setProperty('--tilt-y', `${px * 7}deg`);
+          // 倾角更大，并且整张卡片被"抬"起来一点：鼠标划过时立体跟手更明显
+          card.style.setProperty('--tilt-x', `${-py * 10}deg`);
+          card.style.setProperty('--tilt-y', `${px * 10}deg`);
+          card.style.setProperty('--tilt-z', '16px');
         };
         const onLeave = () => {
           card.style.setProperty('--tilt-x', '0deg');
           card.style.setProperty('--tilt-y', '0deg');
+          card.style.setProperty('--tilt-z', '0px');
         };
         card.addEventListener('mousemove', onMove);
         card.addEventListener('mouseleave', onLeave);
@@ -138,13 +158,18 @@ export default function useSiteFx(entered) {
         });
       });
 
+      // 点击涟漪：原来是一圈 60px 的小圈，现在换成"实圈 + 外扩回声 + 中心柔光"三层。
+      // 实圈最大直径约 240~374px、回声约 374~578px（尺寸用 clamp 跟随视口），手机上同样够大。
+      const clickFxLayers = ['click-ripple', 'click-ripple click-ripple--echo', 'click-flash'];
       const onDocClick = (e) => {
-        const ripple = document.createElement('span');
-        ripple.className = 'click-ripple';
-        ripple.style.left = `${e.clientX}px`;
-        ripple.style.top = `${e.clientY}px`;
-        document.body.appendChild(ripple);
-        ripple.addEventListener('animationend', () => ripple.remove());
+        clickFxLayers.forEach((className) => {
+          const node = document.createElement('span');
+          node.className = className;
+          node.style.left = `${e.clientX}px`;
+          node.style.top = `${e.clientY}px`;
+          document.body.appendChild(node);
+          node.addEventListener('animationend', () => node.remove());
+        });
       };
       document.addEventListener('click', onDocClick);
       cleanups.push(() => document.removeEventListener('click', onDocClick));
@@ -157,6 +182,126 @@ export default function useSiteFx(entered) {
         };
         logo.addEventListener('click', onClick);
         cleanups.push(() => logo.removeEventListener('click', onClick));
+      });
+    }
+
+    // ── 手机 / 平板：手指滑动特效 ──
+    // 触摸时浏览器一旦判定手势为滚动就会发 pointercancel，pointermove 随之断掉，
+    // 所以这里只走 touchmove（passive，既不拦滚动也不影响滚动性能）：
+    // 指尖位置与滑动速度写进 CSS 变量，由 CSS 画出指尖柔光、沿滑动方向的光带、
+    // 三颗延迟跟随的珠子，以及被甩出去的星屑（DOM 直接增删，不经过 React 重渲染）。
+    if (!reduced && coarse) {
+      const root = document.documentElement;
+      const layer = document.createElement('div');
+      layer.className = 'touch-fx';
+      layer.setAttribute('aria-hidden', 'true');
+      const halo = document.createElement('span');
+      halo.className = 'touch-halo';
+      const streak = document.createElement('span');
+      streak.className = 'touch-streak';
+      const orbs = document.createElement('div');
+      orbs.className = 'touch-trail';
+      for (let i = 0; i < 3; i += 1) {
+        const orb = document.createElement('span');
+        orb.className = 'touch-orb';
+        orbs.appendChild(orb);
+      }
+      layer.appendChild(halo);
+      layer.appendChild(streak);
+      layer.appendChild(orbs);
+      document.body.appendChild(layer);
+
+      const sparkHost = document.querySelector('.cursor-particles') || document.body;
+      let frame = 0;
+      let idle = 0;
+      let touchX = 0;
+      let touchY = 0;
+      let lastX = 0;
+      let lastY = 0;
+      let lastTime = 0;
+      let speed = 0;
+      let angle = 0;
+      let sparkAt = 0;
+
+      const paint = () => {
+        frame = 0;
+        root.style.setProperty('--touch-x', `${touchX}px`);
+        root.style.setProperty('--touch-y', `${touchY}px`);
+        root.style.setProperty('--touch-speed', speed.toFixed(3));
+        root.style.setProperty('--touch-angle', `${angle}deg`);
+      };
+
+      const onStart = (event) => {
+        const point = event.touches[0];
+        if (!point) return;
+        window.clearTimeout(idle);
+        touchX = point.clientX;
+        touchY = point.clientY;
+        lastX = touchX;
+        lastY = touchY;
+        lastTime = performance.now();
+        speed = 0;
+        root.classList.add('is-touching');
+        if (!frame) frame = window.requestAnimationFrame(paint);
+      };
+
+      const onMove = (event) => {
+        const point = event.touches[0];
+        if (!point) return;
+        touchX = point.clientX;
+        touchY = point.clientY;
+        const now = performance.now();
+        const dt = Math.max(now - lastTime, 8);
+        const dx = touchX - lastX;
+        const dy = touchY - lastY;
+        const len = Math.hypot(dx, dy);
+        lastX = touchX;
+        lastY = touchY;
+        lastTime = now;
+        speed = speed * 0.62 + Math.min(len / dt / 1.4, 1) * 0.38;
+        if (len > 2) angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+        if (!frame) frame = window.requestAnimationFrame(paint);
+        if (len > 1 && now - sparkAt > 55) {
+          sparkAt = now;
+          const white = Math.random() < 0.4;
+          const size = 5 + speed * 9;
+          const spark = document.createElement('span');
+          spark.className = white ? 'touch-spark is-white' : 'touch-spark';
+          spark.style.left = `${touchX}px`;
+          spark.style.top = `${touchY}px`;
+          spark.style.width = `${size}px`;
+          spark.style.height = `${size}px`;
+          spark.style.setProperty('--spark-x', `${(-dx / len) * (36 + speed * 150) + (Math.random() * 2 - 1) * 44}px`);
+          spark.style.setProperty('--spark-y', `${(-dy / len) * (36 + speed * 150) + (Math.random() * 2 - 1) * 44}px`);
+          spark.style.setProperty('--spark-life', `${Math.round(640 + Math.random() * 380 - speed * 150)}ms`);
+          sparkHost.appendChild(spark);
+          spark.addEventListener('animationend', () => spark.remove());
+        }
+      };
+
+      const onEnd = () => {
+        root.classList.remove('is-touching');
+        window.clearTimeout(idle);
+        idle = window.setTimeout(() => {
+          speed = 0;
+          root.style.setProperty('--touch-speed', '0');
+        }, 220);
+      };
+
+      document.addEventListener('touchstart', onStart, { passive: true });
+      document.addEventListener('touchmove', onMove, { passive: true });
+      document.addEventListener('touchend', onEnd, { passive: true });
+      document.addEventListener('touchcancel', onEnd, { passive: true });
+      cleanups.push(() => {
+        document.removeEventListener('touchstart', onStart);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onEnd);
+        document.removeEventListener('touchcancel', onEnd);
+        if (frame) window.cancelAnimationFrame(frame);
+        window.clearTimeout(idle);
+        root.classList.remove('is-touching');
+        layer.remove();
+        sparkHost.querySelectorAll('.touch-spark').forEach((node) => node.remove());
       });
     }
 

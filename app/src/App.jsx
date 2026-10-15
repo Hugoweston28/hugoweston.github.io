@@ -7,13 +7,17 @@ import CountUp from './CountUp.jsx';
 import Clock from './Clock.jsx';
 import Typewriter from './Typewriter.jsx';
 
+// public/ 下的静态资源不会经过 Vite 的路径重写，部署到 GitHub Pages 子路径时
+// 必须自己补上 base 前缀，否则 /photography/x.jpg 会 404。
+const asset = (path) => `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`;
+
 const projects = [
   {
     number: '01',
     category: 'LANGUAGE / IN PROGRESS',
     title: '多门外语学习',
     description: '从日常积累开始，练习用新的语言理解不同的表达与文化。',
-    images: ['/projects/language-1.svg', '/projects/language-2.svg', '/projects/language-3.svg'],
+    images: [asset('/projects/language-1.svg'), asset('/projects/language-2.svg'), asset('/projects/language-3.svg')],
     alt: '语言学习',
     className: 'project-language',
   },
@@ -22,7 +26,7 @@ const projects = [
     category: 'MUSIC / PRACTICE',
     title: '钢琴与音乐练习',
     description: '把长期练习中的节奏、耐心与情绪，慢慢变成自己的表达。',
-    images: ['/projects/music-1.svg', '/projects/music-2.svg', '/projects/music-3.svg'],
+    images: [asset('/projects/music-1.svg'), asset('/projects/music-2.svg'), asset('/projects/music-3.svg')],
     href: '#music',
     actionLabel: '听我的演奏',
     alt: '钢琴键与琴谱',
@@ -33,9 +37,9 @@ const projects = [
     category: 'PYTHON / MINI GAME',
     title: '猜数字小游戏',
     description: '一个用 Python 编写的命令行小游戏：猜测 1–100 的随机数，根据大小提示继续尝试，并统计猜测次数。',
-    images: ['/projects/python-1.svg', '/projects/python-2.svg', '/projects/python-3.svg'],
+    images: [asset('/projects/python-1.svg'), asset('/projects/python-2.svg'), asset('/projects/python-3.svg')],
     href: '#play',
-    sourceHref: '/games/guess-number/game.py',
+    sourceHref: asset('/games/guess-number/game.py'),
     alt: '桌面上的电脑与创作工具',
     className: 'project-digital',
   },
@@ -63,24 +67,24 @@ const strengths = [
 ];
 
 const artworkItems = [
-  { image: '/artworks/furina-sketch-01.jpg', alt: '手持玫瑰的人物线稿', title: '玫瑰与线稿', subtitle: 'PENCIL STUDY / 01' },
-  { image: '/artworks/girl-sketch-02.jpg', alt: '彩色人物头像线稿', title: '人物肖像', subtitle: 'PORTRAIT STUDY / 02' },
-  { image: '/artworks/artworks3.jpg', alt: '画作三', title: '画作 · 三', subtitle: 'ARTWORK / 03' },
-  { image: '/artworks/artworks4.jpg', alt: '画作四', title: '画作 · 四', subtitle: 'ARTWORK / 04' },
+  { image: asset('/artworks/furina-sketch-01.jpg'), alt: '手持玫瑰的人物线稿', title: '玫瑰与线稿', subtitle: 'PENCIL STUDY / 01' },
+  { image: asset('/artworks/girl-sketch-02.jpg'), alt: '彩色人物头像线稿', title: '人物肖像', subtitle: 'PORTRAIT STUDY / 02' },
+  { image: asset('/artworks/artworks3.jpg'), alt: '画作三', title: '画作 · 三', subtitle: 'ARTWORK / 03' },
+  { image: asset('/artworks/artworks4.jpg'), alt: '画作四', title: '画作 · 四', subtitle: 'ARTWORK / 04' },
 ];
 
 const photographyItems = [
-  { image: '/photography/photo1.jpg', alt: '摄影作品一', title: '摄影作品 · 01', subtitle: 'PHOTO / 01' },
-  { image: '/photography/photo2.jpg', alt: '摄影作品二', title: '摄影作品 · 02', subtitle: 'PHOTO / 02' },
-  { image: '/photography/photo3.jpg', alt: '摄影作品三', title: '摄影作品 · 03', subtitle: 'PHOTO / 03' },
-  { image: '/photography/photo4.jpg', alt: '摄影作品四', title: '摄影作品 · 04', subtitle: 'PHOTO / 04' },
-  { image: '/photography/photo5.jpg', alt: '摄影作品五', title: '摄影作品 · 05', subtitle: 'PHOTO / 05' },
+  { image: asset('/photography/photo1.jpg'), alt: '摄影作品一', title: '摄影作品 · 01', subtitle: 'PHOTO / 01' },
+  { image: asset('/photography/photo2.jpg'), alt: '摄影作品二', title: '摄影作品 · 02', subtitle: 'PHOTO / 02' },
+  { image: asset('/photography/photo3.jpg'), alt: '摄影作品三', title: '摄影作品 · 03', subtitle: 'PHOTO / 03' },
+  { image: asset('/photography/photo4.jpg'), alt: '摄影作品四', title: '摄影作品 · 04', subtitle: 'PHOTO / 04' },
+  { image: asset('/photography/photo5.jpg'), alt: '摄影作品五', title: '摄影作品 · 05', subtitle: 'PHOTO / 05' },
 ];
 
 const musicWorks = [
-  { src: '/music/piano-performance.mp4', title: '钢琴演奏 · 01', subtitle: 'PIANO / PERFORMANCE 01' },
-  { src: '/music/piano-performance2.mp4', title: '钢琴演奏 · 02', subtitle: 'PIANO / PERFORMANCE 02' },
-  { src: '/music/piano-performance3.mp4', title: '钢琴演奏 · 03', subtitle: 'PIANO / PERFORMANCE 03' },
+  { src: asset('/music/piano-performance.mp4'), title: '钢琴演奏 · 01', subtitle: 'PIANO / PERFORMANCE 01' },
+  { src: asset('/music/piano-performance2.mp4'), title: '钢琴演奏 · 02', subtitle: 'PIANO / PERFORMANCE 02' },
+  { src: asset('/music/piano-performance3.mp4'), title: '钢琴演奏 · 03', subtitle: 'PIANO / PERFORMANCE 03' },
 ];
 
 const entrySlides = [

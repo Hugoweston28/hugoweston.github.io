@@ -184,7 +184,7 @@ export default function DepthCarousel({
               goTo(index);
             }}
           >
-            <img className="depth-carousel__img" src={item.image} alt={item.alt || ''} draggable="false" onError={(event) => event.currentTarget.parentElement?.setAttribute('data-missing-image', '')} />
+            <img className="depth-carousel__img" src={item.image} alt={item.alt || ''} draggable="false" loading="lazy" decoding="async" onError={(event) => event.currentTarget.parentElement?.setAttribute('data-missing-image', '')} />
             <span className="depth-carousel__tint" ref={(element) => { overlayRefs.current[index] = element; }} style={{ background: tint }} />
             <span className="depth-carousel__fallback"><b>{item.title || `作品 0${index + 1}`}</b><small>素材文件待载入</small></span>
             {(item.title || item.subtitle) && <span className="depth-carousel__label"><b>{item.title}</b>{item.subtitle && <small>{item.subtitle}</small>}</span>}

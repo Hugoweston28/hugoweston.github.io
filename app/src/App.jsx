@@ -214,8 +214,10 @@ function CharacterWave({ text, className, delayOffset = 0 }) {
 function Hero() {
   return (
     <section className="hero" id="top" aria-labelledby="hero-title">
-      <video className="hero-video" autoPlay muted loop playsInline preload="metadata" poster="https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?auto=format&fit=crop&w=1920&q=85" aria-hidden="true">
-        <source src="https://videos.pexels.com/video-files/10251788/10251788-sd_960_506_25fps.mp4" type="video/mp4" />
+      <video className="hero-video" autoPlay muted loop playsInline preload="metadata" poster={asset('/hero-poster.svg')} style={{ backgroundImage: `url(${asset('/hero-poster.svg')})` }} aria-hidden="true">
+        {/* 自托管背景视频：原来的 videos.pexels.com 是境外 CDN，微信/QQ 内置浏览器（腾讯 X5）加载失败；
+            换成本地文件后与图片同域，国内网络也能播，加载中/失败时由 hero-poster.svg 兜底。 */}
+        <source src={asset('/hero-video.mp4')} type="video/mp4" />
       </video>
       <div className="hero-shade" />
       <Header />
@@ -304,7 +306,7 @@ function Projects() {
             <article className={`project-card ${project.className}`} key={project.number} data-reveal>
               <div className="project-image" role="img" aria-label={project.alt}>
                 {project.images.map((src, i) => (
-                  <img key={src} className="project-slide" src={src} alt="" style={{ '--i': i }} />
+                  <img key={src} className="project-slide" src={src} alt="" loading="lazy" decoding="async" style={{ '--i': i }} />
                 ))}
                 <span className="project-number">{project.number} / 03</span>
                 <span className="project-open"><Arrow diagonal /></span>

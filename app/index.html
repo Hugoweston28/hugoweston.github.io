@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0c0c0d" />
     <meta name="description" content="Hugoweston 的个人主页，记录外语、音乐、视觉创作与技术学习。" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!--
+      不引用 Google Fonts：fonts.googleapis.com / fonts.gstatic.com 在国内网络（尤其是微信、QQ
+      内置浏览器这类腾讯 X5 内核）不可达，外链样式表是渲染阻塞资源，会让首屏长时间空白。
+      改用「本机已安装字体 → 系统中文字体 → 系统无衬线」的字体栈，零外部请求。
+    -->
     <title>HUGOWESTON — 学习，创作，向前</title>
   </head>
   <body>

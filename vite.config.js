@@ -14,5 +14,9 @@ export default defineConfig(({ command }) => ({
   build: {
     outDir: resolve(projectRoot, 'dist'),
     emptyOutDir: true,
+    // 微信 / QQ 内置浏览器用的是腾讯 X5 内核，老机型仍停留在 Chrome 77 上下，
+    // 而 Vite 默认 target 是 es2020（需要 Chrome 87+）。降到 es2018 可避免
+    // 低版本内核直接抛 SyntaxError 导致整页白屏。
+    target: 'es2018',
   },
 }));

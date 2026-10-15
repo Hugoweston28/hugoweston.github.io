@@ -1,5 +1,5 @@
 :root {
-  font-family: 'Noto Sans SC', sans-serif;
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans SC', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: #f1efed;
   background: #0c0c0d;
   font-synthesis: none;
@@ -12,7 +12,7 @@
   --red-deep: #8f1722;
   --warm: #f0c8b7;
   --line: rgba(241, 239, 237, 0.14);
-  --mono: 'Space Grotesk', sans-serif;
+  --mono: 'Space Grotesk', 'Segoe UI', system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
 * { box-sizing: border-box; }

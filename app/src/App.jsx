@@ -212,11 +212,53 @@ function CharacterWave({ text, className, delayOffset = 0 }) {
 }
 
 function Hero() {
+  const videoRef = useRef(null);
+  const [videoReady, setVideoReady] = useState(false);
+
+  // 微信 / QQ 内置浏览器（腾讯 X5）对"页面内自动播放的背景视频"限制很严：
+  // 不放行时首屏会剩一片空白（X5 既不渲染 <video>，也不认 SVG 封面图），
+  // 所以只在视频真的开始播放后才淡入，其余情况一律显示 .hero-backdrop 的静态封面。
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return undefined;
+
+    let cancelled = false;
+    const attemptPlay = () => {
+      const promise = video.play();
+      if (promise && typeof promise.catch === 'function') promise.catch(() => {});
+    };
+    const handlePlaying = () => { if (!cancelled) setVideoReady(true); };
+    const handleFail = () => { if (!cancelled) setVideoReady(false); };
+    const retryOnFirstGesture = () => {
+      // X5 常拒绝首次自动播放：用户第一次触摸/点击时再补一次。
+      attemptPlay();
+      window.removeEventListener('touchstart', retryOnFirstGesture);
+      window.removeEventListener('click', retryOnFirstGesture);
+    };
+
+    video.addEventListener('playing', handlePlaying);
+    video.addEventListener('canplay', attemptPlay);
+    video.addEventListener('error', handleFail);
+    window.addEventListener('touchstart', retryOnFirstGesture, { passive: true });
+    window.addEventListener('click', retryOnFirstGesture);
+    attemptPlay();
+
+    return () => {
+      cancelled = true;
+      video.removeEventListener('playing', handlePlaying);
+      video.removeEventListener('canplay', attemptPlay);
+      video.removeEventListener('error', handleFail);
+      window.removeEventListener('touchstart', retryOnFirstGesture);
+      window.removeEventListener('click', retryOnFirstGesture);
+    };
+  }, []);
+
   return (
     <section className="hero" id="top" aria-labelledby="hero-title">
-      <video className="hero-video" autoPlay muted loop playsInline preload="metadata" poster={asset('/hero-poster.svg')} style={{ backgroundImage: `url(${asset('/hero-poster.svg')})` }} aria-hidden="true">
+      <div className="hero-backdrop" style={{ backgroundImage: `url(${asset('/hero-poster.jpg')})` }} aria-hidden="true" />
+      <video ref={videoRef} className={videoReady ? 'hero-video is-ready' : 'hero-video'} autoPlay muted loop playsInline preload="auto" disablePictureInPicture webkit-playsinline="true" x5-playsinline="true" x5-video-player-fullscreen="false" poster={asset('/hero-poster.jpg')} aria-hidden="true">
         {/* 自托管背景视频：原来的 videos.pexels.com 是境外 CDN，微信/QQ 内置浏览器（腾讯 X5）加载失败；
-            换成本地文件后与图片同域，国内网络也能播，加载中/失败时由 hero-poster.svg 兜底。 */}
+            换成本地文件后与图片同域，国内网络也能播；但它只是"增强层"，真正保证首屏不空白的是 .hero-backdrop 里的 hero-poster.jpg。 */}
         <source src={asset('/hero-video.mp4')} type="video/mp4" />
       </video>
       <div className="hero-shade" />
@@ -461,8 +503,80 @@ function Strengths() {
   );
 }
 
+// 留言板：静态站点没有后端，所以「发送」拆成两条国内都能走通的通道——
+// 1) mailto 直接唤起邮件应用；2) 一键复制整条留言，粘到微信 / QQ 里同样能送达。
+// 草稿写进 localStorage，访客误关页面也不丢内容。
+const NOTE_DRAFT_KEY = 'hugoweston-note-draft';
+const EMPTY_NOTE = { name: '', contact: '', message: '' };
+
+const readNoteDraft = () => {
+  try {
+    const raw = window.localStorage.getItem(NOTE_DRAFT_KEY);
+    if (!raw) return EMPTY_NOTE;
+    const parsed = JSON.parse(raw);
+    return {
+      name: typeof parsed.name === 'string' ? parsed.name : '',
+      contact: typeof parsed.contact === 'string' ? parsed.contact : '',
+      message: typeof parsed.message === 'string' ? parsed.message : '',
+    };
+  } catch {
+    return EMPTY_NOTE;
+  }
+};
+
+const legacyCopy = (text) => new Promise((resolve, reject) => {
+  try {
+    const field = document.createElement('textarea');
+    field.value = text;
+    // readonly 是为了不在 iOS / 微信里弹出键盘；select + setSelectionRange 保证选区覆盖全文。
+    field.setAttribute('readonly', '');
+    field.style.position = 'fixed';
+    field.style.top = '0';
+    field.style.left = '-9999px';
+    field.style.opacity = '0';
+    document.body.appendChild(field);
+    field.focus({ preventScroll: true });
+    field.select();
+    field.setSelectionRange(0, field.value.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(field);
+    if (ok) resolve();
+    else reject(new Error('copy-unsupported'));
+  } catch (error) {
+    reject(error);
+  }
+});
+
+const copyToClipboard = (text) => {
+  // 微信 / QQ 内核里 navigator.clipboard 常常"存在但被权限拒掉"，所以失败后必须再退到
+  // execCommand 这条老路（点击事件里的同步选区，X5 与 iOS WKWebView 都认）。
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text).catch(() => legacyCopy(text));
+  }
+  return legacyCopy(text);
+};
+
+// 微信 / QQ 内置浏览器跑的是腾讯 X5 内核：里面没有邮件客户端，mailto: 也唤不起任何应用，
+// 点「发送留言」等于石沉大海。检测到这类环境就把「复制留言」提为主按钮，
+// 文案统一改成「复制 → 回聊天框粘贴」；桌面和手机系统浏览器仍保持邮件优先。
+const detectWebview = () => {
+  if (typeof navigator === 'undefined') return '';
+  const ua = navigator.userAgent || '';
+  if (/MicroMessenger/i.test(ua)) return 'wechat';
+  // QQ 内置浏览器 UA 带 "QQ/8.x"；手机 QQ 浏览器（MQQBrowser）是完整浏览器、mailto 可用，不做降级。
+  if (/\bQQ\/[\d.]+/i.test(ua)) return 'qq';
+  return '';
+};
+
+const WEBVIEW = detectWebview();
+const IS_WEBVIEW = Boolean(WEBVIEW);
+const WEBVIEW_NAME = WEBVIEW === 'wechat' ? '微信' : WEBVIEW === 'qq' ? 'QQ' : '';
+
 function Contact() {
   const [copied, setCopied] = useState(false);
+  const [note, setNote] = useState(readNoteDraft);
+  const [noteStatus, setNoteStatus] = useState(IS_WEBVIEW ? `已切换为「复制留言」模式：写完点一下，回${WEBVIEW_NAME}聊天框长按粘贴即可。` : '');
+  const [noteOk, setNoteOk] = useState(false);
   const email = '2916434975@qq.com';
 
   const copyEmail = (event) => {
@@ -478,15 +592,102 @@ function Contact() {
     }
   };
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(NOTE_DRAFT_KEY, JSON.stringify(note));
+    } catch {
+      // 隐私模式下写入失败，忽略即可，不影响发送
+    }
+  }, [note]);
+
+  const changeNote = (key) => (event) => {
+    const { value } = event.target;
+    setNote((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const composeNote = () => {
+    const name = note.name.trim() || '一位访客';
+    const contact = note.contact.trim();
+    const stamp = new Date().toLocaleString('zh-CN', { hour12: false });
+    return `${note.message.trim()}\n\n—— ${name}\n${contact ? `联系方式：${contact}\n` : ''}发送时间：${stamp}\n（来自 hugoweston28.github.io 的留言板）`;
+  };
+
+  const sendNote = (event) => {
+    event.preventDefault();
+    if (!note.message.trim()) {
+      setNoteOk(false);
+      setNoteStatus('留言还是空的，写点想说的话再发送吧。');
+      return;
+    }
+    const subject = `来自个人主页的留言 · ${note.name.trim() || '访客'}`;
+    window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(composeNote())}`;
+    setNoteOk(true);
+    setNoteStatus(IS_WEBVIEW
+      ? `${WEBVIEW_NAME}里通常唤不起邮件应用；没反应就点「复制留言」，回到聊天框长按粘贴给我。`
+      : '已唤起邮件应用；如果手机上没弹出，点「复制留言」再粘贴给我也一样。');
+  };
+
+  const copyNote = () => {
+    if (!note.message.trim()) {
+      setNoteOk(false);
+      setNoteStatus('留言还是空的，写点想说的话再复制吧。');
+      return;
+    }
+    copyToClipboard(composeNote())
+      .then(() => {
+        setNoteOk(true);
+        setNoteStatus(IS_WEBVIEW
+          ? `留言已复制，回到${WEBVIEW_NAME}聊天框长按粘贴发给我就行（也可以发到 ${email}）。`
+          : `留言已复制，粘贴到微信 / QQ 或邮件发给我（${email}）都可以。`);
+      })
+      .catch(() => {
+        setNoteOk(false);
+        setNoteStatus(IS_WEBVIEW
+          ? `复制没成功，长按选中上面的留言内容手动复制，或者发到 ${email}。`
+          : `复制没成功，可以直接把留言发到 ${email}。`);
+      });
+  };
+
   return (
     <section className="contact-section" id="contact">
       <div className="contact-grid-pattern" />
       <CyberRain />
       <div className="page-width contact-inner" data-reveal>
-        <p className="eyebrow"><span>07</span> KEEP IN TOUCH</p>
-        <p className="contact-pretitle">每一次交流，都是新的开始。<Clock label=" · SHENYANG " /></p>
-        <h2>下一段<span className="hl-red">故事</span>，<br /><span className="hl-soft">从认识</span><span className="hl-red">开始。</span></h2>
-        <a className="contact-email" href={`mailto:${email}`} onClick={copyEmail}>{email} <Arrow diagonal /></a>
+        <div className="contact-main">
+          <p className="eyebrow"><span>07</span> KEEP IN TOUCH</p>
+          <p className="contact-pretitle">每一次交流，都是新的开始。<Clock label=" · SHENYANG " /></p>
+          <h2>下一段<span className="hl-red">故事</span>，<br /><span className="hl-soft">从认识</span><span className="hl-red">开始。</span></h2>
+          <a className="contact-email" href={`mailto:${email}`} onClick={copyEmail}>{email} <Arrow diagonal /></a>
+        </div>
+        <aside className="contact-side" id="guestbook">
+          <div className="contact-note">
+            <div className="contact-note-head"><span>GUESTBOOK</span><span>留言板 / 08</span></div>
+            <h3>想说的话，<em>写在这里</em>。</h3>
+            <p className="contact-note-desc">{IS_WEBVIEW
+              ? `在${WEBVIEW_NAME}里点邮件按钮通常唤不起邮箱，所以最快的方式是：写好留言 → 点「复制留言」→ 回到聊天框长按粘贴发给我。想用邮件也可以点「发送留言」。`
+              : '留下称呼和想说的话，点「发送留言」会用邮件直接发给我；如果手机上没有唤起邮件，就点「复制留言」，粘贴到微信或 QQ 发给我也完全一样。'}</p>
+            <form className="contact-form" data-nosplit onSubmit={sendNote}>
+              <div className="contact-field">
+                <label htmlFor="guest-name">称呼 / NAME</label>
+                <input id="guest-name" name="name" type="text" value={note.name} onChange={changeNote('name')} placeholder="怎么称呼你？（可留空）" maxLength={40} autoComplete="off" />
+              </div>
+              <div className="contact-field">
+                <label htmlFor="guest-contact">回信方式 / CONTACT</label>
+                <input id="guest-contact" name="contact" type="text" value={note.contact} onChange={changeNote('contact')} placeholder="邮箱或微信，方便我回复（可留空）" maxLength={80} autoComplete="off" />
+              </div>
+              <div className="contact-field">
+                <label htmlFor="guest-message">留言内容 / MESSAGE</label>
+                <textarea id="guest-message" name="message" rows={4} value={note.message} onChange={changeNote('message')} placeholder="想聊语言、音乐、创作，或者任何新想法……" maxLength={800} />
+              </div>
+              <div className={`contact-note-actions${IS_WEBVIEW ? ' is-webview' : ''}`}>
+                <button type="submit" className={`contact-submit${IS_WEBVIEW ? ' is-secondary' : ''}`}>发送留言 <Arrow diagonal /></button>
+                <button type="button" className={`contact-copy${IS_WEBVIEW ? ' is-primary' : ''}`} onClick={copyNote}>复制留言</button>
+              </div>
+              <p className={`contact-note-status${noteOk ? ' is-ok' : ''}`} role="status" aria-live="polite">{noteStatus}</p>
+            </form>
+            <p className="contact-note-foot">也可以直接写信到 <a href={`mailto:${email}`}>{email}</a></p>
+          </div>
+        </aside>
         <div className="contact-bottom">
           <span>沈阳</span>
           <a href="https://github.com/Hugoweston28" target="_blank" rel="noreferrer">GITHUB <Arrow diagonal /></a>

@@ -25,8 +25,13 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .page-width { width: min(1700px, calc(100% - 112px)); margin-inline: auto; }
 
 .hero { position: relative; min-height: 760px; height: 100svh; max-height: 1100px; overflow: hidden; isolation: isolate; background: #101011; }
-.hero-video, .hero-shade { position: absolute; inset: 0; width: 100%; height: 100%; }
-.hero-video { z-index: -2; object-fit: cover; filter: saturate(.72) contrast(1.08); opacity: .82; transform: scale(1.045) translate3d(var(--hero-drift-x, 0px), var(--hero-drift-y, 0px), 0); transition: transform .35s ease-out; }
+.hero-backdrop, .hero-video, .hero-shade { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hero-video { z-index: -2; object-fit: cover; filter: saturate(.72) contrast(1.08); opacity: 0; transition: opacity .7s ease, transform .35s ease-out; transform: scale(1.045) translate3d(var(--hero-drift-x, 0px), var(--hero-drift-y, 0px), 0); }
+.hero-video.is-ready { opacity: .82; }
+/* 首屏兜底：真实视频帧（hero-poster.jpg）常驻在最底层。
+   微信 / QQ 内置浏览器（X5）经常既不渲染 <video>、也不认 SVG 封面，
+   把封面从 <video> 上解耦成独立光栅图层后，首屏任何情况都不会空白。 */
+.hero-backdrop { z-index: -3; background-color: #101011; background-position: center; background-size: cover; background-repeat: no-repeat; }
 .hero-shade { z-index: -1; background: linear-gradient(90deg, rgba(9,6,7,.88) 0%, rgba(10,7,8,.61) 42%, rgba(20,6,8,.24) 100%), linear-gradient(0deg, rgba(8,6,7,.82), transparent 47%), linear-gradient(180deg, rgba(8,6,7,.48), transparent 34%), radial-gradient(ellipse at 76% 48%, rgba(181,20,35,.2), transparent 37%); }
 .hero::after { content: ''; position: absolute; z-index: -1; inset: 0; pointer-events: none; opacity: .14; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.2'/%3E%3C/svg%3E"); mix-blend-mode: soft-light; }
 .site-header { position: absolute; top: 0; left: 0; right: 0; z-index: 3; width: min(1700px, calc(100% - 112px)); height: 94px; margin: auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 1px solid rgba(255,255,255,.18); }
@@ -316,7 +321,9 @@ button, a { -webkit-tap-highlight-color: transparent; }
   75% { opacity: .5; }
   100% { opacity: 0; transform: translateY(-90%); }
 }
-.contact-inner { position: relative; z-index: 1; padding: 135px 0 38px; }
+.contact-inner { position: relative; z-index: 1; padding: 135px 0 38px; display: grid; grid-template-columns: minmax(0, 1.04fr) minmax(0, .96fr); column-gap: 78px; align-items: start; }
+.contact-main { min-width: 0; }
+.contact-side { min-width: 0; }
 .contact-pretitle { margin: 65px 0 19px; color: #aaa2a0; font-size: 13px; }
 .contact-inner h2 { margin: 0 0 37px; font-size: 76px; line-height: 1.35; font-weight: 500; letter-spacing: 0; }
 .contact-inner h2 .hl-red { color: #ed3342; text-shadow: 0 0 26px rgba(237,51,66,.4); }
@@ -324,13 +331,48 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .contact-email { display: inline-flex; align-items: center; gap: 19px; padding-bottom: 11px; border-bottom: 1px solid rgba(255,255,255,.43); font: 500 18px var(--mono); transition: color .2s; }
 .contact-email:hover { color: #ff675e; }
 .contact-email .arrow { color: var(--red); }
-.contact-bottom { display: flex; justify-content: space-between; gap: 24px; padding-top: 30px; margin-top: 126px; border-top: 1px solid rgba(255,255,255,.17); color: #8e8583; font-size: 9px; letter-spacing: 1px; }
+.contact-bottom { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 24px; padding-top: 30px; margin-top: 126px; border-top: 1px solid rgba(255,255,255,.17); color: #8e8583; font-size: 9px; letter-spacing: 1px; }
 .contact-bottom a { color: #bcb5b2; }
 .contact-bottom .arrow { color: var(--red); font-size: 12px; }
 .contact-watermark { position: absolute; right: 5%; bottom: -190px; color: rgba(227,59,50,.045); font: 700 600px/.85 var(--mono); pointer-events: none; }
 .live-clock { color: var(--red); font-family: var(--mono); letter-spacing: 1px; }
 .copy-toast { position: fixed; z-index: 80; bottom: 90px; left: 50%; padding: 12px 22px; border: 1px solid rgba(237,51,66,.5); border-radius: 999px; background: rgba(20,10,10,.9); color: #f1efed; font-size: 12px; letter-spacing: .5px; pointer-events: none; opacity: 0; transform: translate(-50%, 14px); transition: opacity .3s ease, transform .3s ease; backdrop-filter: blur(8px); }
 .copy-toast.is-show { opacity: 1; transform: translate(-50%, 0); }
+
+/* 留言板（联系板块右侧）：静态站点没有后端，所以「发送」= 邮件直发 + 一键复制双通道，
+   两条路在国内（含微信 / QQ 内核）都能把留言送到。 */
+.contact-side { padding-top: 48px; }
+.contact-note { padding: 32px 32px 28px; border: 1px solid rgba(255,255,255,.15); border-radius: 3px; background: linear-gradient(158deg, rgba(38,24,25,.9), rgba(15,12,13,.93)); box-shadow: 0 34px 90px rgba(0,0,0,.42); }
+.contact-note-head { display: flex; justify-content: space-between; gap: 16px; color: #8c8380; font: 500 9px var(--mono); letter-spacing: 1.6px; }
+.contact-note-head span:first-child { color: var(--red); }
+.contact-note h3 { margin: 22px 0 12px; font-size: 27px; font-weight: 500; line-height: 1.4; }
+.contact-note h3 em { color: #ff675e; font-style: normal; }
+.contact-note-desc { margin: 0 0 24px; color: #9d9491; font-size: 12.5px; line-height: 1.9; }
+.contact-field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
+.contact-field label { color: #7c7472; font: 500 9px var(--mono); letter-spacing: 1.4px; }
+.contact-field input, .contact-field textarea { width: 100%; padding: 12px 13px; border: 1px solid rgba(255,255,255,.14); border-radius: 2px; background: rgba(10,9,10,.72); color: var(--paper); font-family: inherit; font-size: 13px; line-height: 1.7; resize: vertical; transition: border-color .2s ease, background .2s ease; }
+.contact-field textarea { min-height: 116px; }
+.contact-field input::placeholder, .contact-field textarea::placeholder { color: #6b6463; }
+.contact-field input:focus, .contact-field textarea:focus { outline: none; border-color: rgba(237,51,66,.62); background: rgba(24,14,15,.86); }
+.contact-note-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 6px; }
+.contact-submit { display: inline-flex; align-items: center; gap: 10px; padding: 13px 22px; border: 0; border-radius: 2px; background: linear-gradient(118deg, #e0233a, #8f1722); color: #fff; font-family: inherit; font-size: 13px; letter-spacing: .4px; cursor: pointer; transition: filter .2s ease, transform .2s ease; }
+.contact-submit:hover { filter: brightness(1.12); }
+.contact-submit:active { transform: translateY(1px); }
+.contact-submit .arrow { font-size: 15px; }
+.contact-copy { display: inline-flex; align-items: center; justify-content: center; padding: 12px 18px; border: 1px solid rgba(255,255,255,.22); border-radius: 2px; background: transparent; color: #cfc8c5; font-family: inherit; font-size: 12.5px; cursor: pointer; transition: border-color .2s ease, color .2s ease; }
+.contact-copy:hover { border-color: rgba(237,51,66,.6); color: #ff8b90; }
+/* 微信 / QQ 内置浏览器（X5）里 mailto 唤不起邮件，所以交互上把「复制留言」提为主按钮：
+   视觉上排到前面、换成实心红，邮件发送降级为描边次要按钮（DOM 顺序不变，靠 row-reverse 交换）。 */
+.contact-note-actions.is-webview { flex-direction: row-reverse; }
+.contact-copy.is-primary { gap: 10px; padding: 13px 22px; border: 0; background: linear-gradient(118deg, #e0233a, #8f1722); color: #fff; font-size: 13px; }
+.contact-copy.is-primary:hover { border: 0; color: #fff; filter: brightness(1.12); }
+.contact-submit.is-secondary { padding: 12px 18px; border: 1px solid rgba(255,255,255,.22); background: transparent; color: #cfc8c5; font-size: 12.5px; }
+.contact-submit.is-secondary:hover { border-color: rgba(237,51,66,.6); color: #ff8b90; filter: none; }
+.contact-note-status { min-height: 19px; margin: 14px 0 0; color: #9d9491; font-size: 11.5px; line-height: 1.7; }
+.contact-note-status.is-ok { color: #ff9a9e; }
+.contact-note-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 18px 0 0; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.12); color: #857c7a; font-size: 11px; }
+.contact-note-foot a { color: #cfc8c5; font-family: var(--mono); }
+.contact-note-foot a:hover { color: #ff675e; }
 
 @media (min-width: 1701px) {
   .hero-index { left: max(56px, calc((100vw - 1588px) / 2)); }
@@ -349,6 +391,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .project-music .project-image, .project-digital .project-image { height: 300px; }
   .hero-index { left: 32px; }
   .hero-side-note { right: 32px; }
+  .contact-inner { grid-template-columns: 1fr; row-gap: 56px; }
 }
 @media (max-width: 720px) {
   .page-width, .site-header { width: calc(100% - 40px); }
@@ -436,6 +479,16 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .contact-bottom span { flex-basis: 100%; }
   .contact-watermark { right: -25px; bottom: -77px; font-size: 300px; }
   .contact-grid-pattern { background-size: 48px 48px; }
+  .contact-inner { row-gap: 40px; }
+  .contact-side { padding-top: 0; }
+  .contact-note { padding: 24px 20px 22px; }
+  .contact-note h3 { margin: 18px 0 10px; font-size: 22px; }
+  .contact-note-desc { margin-bottom: 20px; font-size: 12px; }
+  /* 16px 是 iOS / 微信内核的阈值：小于它聚焦输入框会强制放大整个页面，手机上像"跳了一下"。 */
+  .contact-field input, .contact-field textarea { font-size: 16px; }
+  .contact-note-actions { gap: 10px; }
+  .contact-submit, .contact-copy { flex: 1 1 132px; }
+  .contact-bottom { margin-top: 66px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }

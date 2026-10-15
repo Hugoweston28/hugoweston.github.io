@@ -33,5 +33,9 @@ export default function CountUp({ to = 0, suffix = '', duration = 1200 }) {
   }, [to, duration]);
 
   const pad = String(to).length;
-  return <span ref={ref}>{String(value).padStart(pad, '0')}{suffix}</span>;
+  // data-nosplit 必须挂在数字自己身上：页面进场时 App.jsx 的 splitRevealText 会把
+  // [data-reveal] 里的文本节点逐个拆成 <span class="reveal-char">。数字是"会被 React
+  // 反复更新的文字"，一旦文本节点被换掉，React 之后所有写入都落在已经脱离文档的旧节点上，
+  // 页面上就永远停在初始值（00 / 0），看着像"没跟电脑版同步"。
+  return <span ref={ref} data-nosplit>{String(value).padStart(pad, '0')}{suffix}</span>;
 }

@@ -134,6 +134,7 @@ export default function CircularCarousel({
   return (
     <div
       className="circular-carousel"
+      data-nosplit
       data-preset={preset}
       data-intro={intro}
       data-draggable={draggable ? '' : undefined}

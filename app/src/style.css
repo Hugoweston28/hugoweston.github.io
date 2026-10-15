@@ -25,13 +25,26 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .page-width { width: min(1700px, calc(100% - 112px)); margin-inline: auto; }
 
 .hero { position: relative; min-height: 760px; height: 100svh; max-height: 1100px; overflow: hidden; isolation: isolate; background: #101011; }
-.hero-backdrop, .hero-video, .hero-shade { position: absolute; inset: 0; width: 100%; height: 100%; }
-.hero-video { z-index: -2; object-fit: cover; filter: saturate(.72) contrast(1.08); opacity: 0; transition: opacity .7s ease, transform .35s ease-out; transform: scale(1.045) translate3d(var(--hero-drift-x, 0px), var(--hero-drift-y, 0px), 0); }
-.hero-video.is-ready { opacity: .82; }
+.hero-backdrop, .hero-video-layer, .hero-shade { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* 装饰层与 <video> 解耦：滤镜、缩放、视差漂移、淡入全部只作用在外层 .hero-video-layer，
+   <video> 自己保持最朴素（只做 object-fit: cover）。原因是 QQ / 微信的腾讯 X5 内核会把
+   <video> 单独拎进一个原生合成层，那一层既不认 filter / transform，也常忽略 opacity，
+   表现就是页面里的背景视频僵在第一帧不动（QQ 比微信更明显）。配合 video 上的
+   x5-video-player-type="h5"（同层播放器）把画面留在页面内合成后，这些样式才有意义。 */
+.hero-video-layer { z-index: -2; filter: saturate(.72) contrast(1.08); opacity: 0; transition: opacity .7s ease, transform .35s ease-out; transform: scale(1.045) translate3d(var(--hero-drift-x, 0px), var(--hero-drift-y, 0px), 0); }
+.hero-video-layer.is-ready { opacity: .82; }
+.hero-video { display: block; width: 100%; height: 100%; object-fit: cover; }
 /* 首屏兜底：真实视频帧（hero-poster.jpg）常驻在最底层。
    微信 / QQ 内置浏览器（X5）经常既不渲染 <video>、也不认 SVG 封面，
    把封面从 <video> 上解耦成独立光栅图层后，首屏任何情况都不会空白。 */
-.hero-backdrop { z-index: -3; background-color: #101011; background-position: center; background-size: cover; background-repeat: no-repeat; }
+.hero-backdrop { z-index: -3; background-color: #101011; background-position: center; background-size: cover; background-repeat: no-repeat; animation: hero-backdrop-drift 26s ease-in-out infinite alternate; }
+/* 兜底保险：万一某个内核（QQ 的 X5 尤其常见）始终不放行背景视频，
+   静态封面自己极缓慢地漂移，首屏就不会看起来像"卡在一帧"。
+   prefers-reduced-motion 下由文件末尾的全局规则把动画时长压到 0.01ms，等于静止。 */
+@keyframes hero-backdrop-drift {
+  from { transform: scale(1) translate3d(0, 0, 0); }
+  to { transform: scale(1.06) translate3d(-12px, -8px, 0); }
+}
 .hero-shade { z-index: -1; background: linear-gradient(90deg, rgba(9,6,7,.88) 0%, rgba(10,7,8,.61) 42%, rgba(20,6,8,.24) 100%), linear-gradient(0deg, rgba(8,6,7,.82), transparent 47%), linear-gradient(180deg, rgba(8,6,7,.48), transparent 34%), radial-gradient(ellipse at 76% 48%, rgba(181,20,35,.2), transparent 37%); }
 .hero::after { content: ''; position: absolute; z-index: -1; inset: 0; pointer-events: none; opacity: .14; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.2'/%3E%3C/svg%3E"); mix-blend-mode: soft-light; }
 .site-header { position: absolute; top: 0; left: 0; right: 0; z-index: 3; width: min(1700px, calc(100% - 112px)); height: 94px; margin: auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 1px solid rgba(255,255,255,.18); }

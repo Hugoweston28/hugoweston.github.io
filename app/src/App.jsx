@@ -218,49 +218,92 @@ function Hero() {
   // 微信 / QQ 内置浏览器（腾讯 X5）对"页面内自动播放的背景视频"限制很严：
   // 不放行时首屏会剩一片空白（X5 既不渲染 <video>，也不认 SVG 封面图），
   // 所以只在视频真的开始播放后才淡入，其余情况一律显示 .hero-backdrop 的静态封面。
+  // QQ 的 X5 比微信更"凶"：默认把 <video> 丢进原生播放器层，那一层不认 CSS 的
+  // filter / opacity，页面里的背景视频就僵在第一帧不动。对策三条：
+  //   1) video 上带 x5-video-player-type="h5" 走同层播放器，把画面留在页面内合成；
+  //   2) filter / 缩放 / 淡入都挪到外层 .hero-video-layer，<video> 本身保持最朴素；
+  //   3) 不轻易放弃补播：muted / playsinline 再用 DOM 属性兜一遍，并在
+  //      canplay / loadeddata、首次触摸点击滚动、页面重新可见以及四次定时里反复 play()，
+  //      直到真的触发 playing 事件才收手（后面再补也是白补）。
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return undefined;
 
     let cancelled = false;
+    let playing = false;
+    let timers = [];
     const attemptPlay = () => {
+      if (cancelled || playing) return;
+      // React 的 muted / playsInline 只落到 DOM 属性上，而 X5 的原生播放器只看 HTML 属性，
+      // 所以这里逐条再兜一次；play() 在部分旧内核里不返回 Promise，所以要先判存在。
+      video.muted = true;
+      video.defaultMuted = true;
+      video.setAttribute('muted', '');
+      video.setAttribute('playsinline', '');
+      video.setAttribute('webkit-playsinline', '');
       const promise = video.play();
       if (promise && typeof promise.catch === 'function') promise.catch(() => {});
     };
-    const handlePlaying = () => { if (!cancelled) setVideoReady(true); };
-    const handleFail = () => { if (!cancelled) setVideoReady(false); };
-    const retryOnFirstGesture = () => {
-      // X5 常拒绝首次自动播放：用户第一次触摸/点击时再补一次。
-      attemptPlay();
-      window.removeEventListener('touchstart', retryOnFirstGesture);
-      window.removeEventListener('click', retryOnFirstGesture);
+    const stopRetrying = () => {
+      playing = true;
+      timers.forEach((id) => window.clearTimeout(id));
+      timers = [];
+      window.removeEventListener('touchstart', attemptPlay);
+      window.removeEventListener('touchend', attemptPlay);
+      window.removeEventListener('click', attemptPlay);
+      window.removeEventListener('scroll', attemptPlay);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
+    const handlePlaying = () => {
+      if (cancelled) return;
+      setVideoReady(true);
+      stopRetrying(); // 真的播起来了，收掉所有补播监听和定时器
+    };
+    const handleFail = () => { if (!cancelled) setVideoReady(false); };
+    const handleVisibility = () => { if (!document.hidden) attemptPlay(); };
 
     video.addEventListener('playing', handlePlaying);
     video.addEventListener('canplay', attemptPlay);
+    video.addEventListener('loadeddata', attemptPlay);
     video.addEventListener('error', handleFail);
-    window.addEventListener('touchstart', retryOnFirstGesture, { passive: true });
-    window.addEventListener('click', retryOnFirstGesture);
+    // X5 常拒绝首次自动播放：用户第一次触摸 / 点击 / 滚动时补播，一直补到真的播起来。
+    window.addEventListener('touchstart', attemptPlay, { passive: true });
+    window.addEventListener('touchend', attemptPlay, { passive: true });
+    window.addEventListener('click', attemptPlay);
+    window.addEventListener('scroll', attemptPlay, { passive: true });
+    document.addEventListener('visibilitychange', handleVisibility);
     attemptPlay();
+    // 有些内核（尤其 QQ 的 X5）要等缓冲够了才肯放行，头几秒各补一次。
+    timers = [420, 1200, 3000, 6000].map((delay) => window.setTimeout(attemptPlay, delay));
 
     return () => {
       cancelled = true;
+      playing = true;
+      timers.forEach((id) => window.clearTimeout(id));
       video.removeEventListener('playing', handlePlaying);
       video.removeEventListener('canplay', attemptPlay);
+      video.removeEventListener('loadeddata', attemptPlay);
       video.removeEventListener('error', handleFail);
-      window.removeEventListener('touchstart', retryOnFirstGesture);
-      window.removeEventListener('click', retryOnFirstGesture);
+      window.removeEventListener('touchstart', attemptPlay);
+      window.removeEventListener('touchend', attemptPlay);
+      window.removeEventListener('click', attemptPlay);
+      window.removeEventListener('scroll', attemptPlay);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 
   return (
     <section className="hero" id="top" aria-labelledby="hero-title">
       <div className="hero-backdrop" style={{ backgroundImage: `url(${asset('/hero-poster.jpg')})` }} aria-hidden="true" />
-      <video ref={videoRef} className={videoReady ? 'hero-video is-ready' : 'hero-video'} autoPlay muted loop playsInline preload="auto" disablePictureInPicture webkit-playsinline="true" x5-playsinline="true" x5-video-player-fullscreen="false" poster={asset('/hero-poster.jpg')} aria-hidden="true">
-        {/* 自托管背景视频：原来的 videos.pexels.com 是境外 CDN，微信/QQ 内置浏览器（腾讯 X5）加载失败；
-            换成本地文件后与图片同域，国内网络也能播；但它只是"增强层"，真正保证首屏不空白的是 .hero-backdrop 里的 hero-poster.jpg。 */}
-        <source src={asset('/hero-video.mp4')} type="video/mp4" />
-      </video>
+      {/* 淡入、滤镜、视差漂移都挂在这一层，<video> 只负责 object-fit: cover：
+          X5 会特殊对待 <video> 本身，越朴素越不容易被拎进原生层。 */}
+      <div className={`hero-video-layer${videoReady ? ' is-ready' : ''}`} aria-hidden="true">
+        <video ref={videoRef} className="hero-video" autoPlay muted loop playsInline preload="auto" disablePictureInPicture webkit-playsinline="true" x5-playsinline="true" x5-video-player-type="h5" x5-video-player-fullscreen="false" poster={asset('/hero-poster.jpg')} aria-hidden="true">
+          {/* 自托管背景视频：原来的 videos.pexels.com 是境外 CDN，微信/QQ 内置浏览器（腾讯 X5）加载失败；
+              换成本地文件后与图片同域，国内网络也能播；但它只是"增强层"，真正保证首屏不空白的是 .hero-backdrop 里的 hero-poster.jpg。 */}
+          <source src={asset('/hero-video.mp4')} type="video/mp4" />
+        </video>
+      </div>
       <div className="hero-shade" />
       <Header />
       <div className="hero-inner page-width">
@@ -655,7 +698,7 @@ function Contact() {
       <div className="page-width contact-inner" data-reveal>
         <div className="contact-main">
           <p className="eyebrow"><span>07</span> KEEP IN TOUCH</p>
-          <p className="contact-pretitle">每一次交流，都是新的开始。<Clock label=" · SHENYANG " /></p>
+          <p className="contact-pretitle">每一次交流，都是新的开始。<span data-nosplit><Clock label=" · SHENYANG " /></span></p>
           <h2>下一段<span className="hl-red">故事</span>，<br /><span className="hl-soft">从认识</span><span className="hl-red">开始。</span></h2>
           <a className="contact-email" href={`mailto:${email}`} onClick={copyEmail}>{email} <Arrow diagonal /></a>
         </div>
@@ -683,7 +726,7 @@ function Contact() {
                 <button type="submit" className={`contact-submit${IS_WEBVIEW ? ' is-secondary' : ''}`}>发送留言 <Arrow diagonal /></button>
                 <button type="button" className={`contact-copy${IS_WEBVIEW ? ' is-primary' : ''}`} onClick={copyNote}>复制留言</button>
               </div>
-              <p className={`contact-note-status${noteOk ? ' is-ok' : ''}`} role="status" aria-live="polite">{noteStatus}</p>
+              <p className={`contact-note-status${noteOk ? ' is-ok' : ''}`} role="status" aria-live="polite" data-nosplit>{noteStatus}</p>
             </form>
             <p className="contact-note-foot">也可以直接写信到 <a href={`mailto:${email}`}>{email}</a></p>
           </div>
@@ -799,6 +842,10 @@ export default function App() {
         node.parentNode.replaceChild(fragment, node);
       });
     };
+    // 拆分只对"静态文字"安全：任何会被 React 之后更新的文字，都要在自己（或祖先）节点上
+    // 标 data-nosplit（上面的 acceptNode 会跳过整棵子树），否则文本节点被换掉之后，
+    // React 的更新写得进去、页面上却永远显示拆分那一刻的旧内容。已标记的有：
+    // CountUp 数字、实时 Clock、留言状态提示、留言表单、游戏面板、Typewriter、两个轮播。
     document.querySelectorAll('[data-reveal]').forEach(splitRevealText);
     const revealItems = document.querySelectorAll('[data-reveal]');
     if (!('IntersectionObserver' in window)) {

@@ -153,6 +153,7 @@ export default function DepthCarousel({
   return (
     <div
       className={`depth-carousel ${className}`.trim()}
+      data-nosplit
       style={{ '--dc-perspective': `${perspective}px` }}
       role="region"
       aria-roledescription="carousel"

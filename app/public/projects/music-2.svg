@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#15151a"/><stop offset="1" stop-color="#0a0a0b"/>
+    </linearGradient>
+    <pattern id="g" width="44" height="44" patternUnits="userSpaceOnUse">
+      <path d="M44 0H0v44" fill="none" stroke="#f1efed" stroke-opacity=".05"/>
+    </pattern>
+  </defs>
+  <rect width="600" height="800" fill="url(#bg)"/>
+  <rect width="600" height="800" fill="url(#g)"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M30,400 C110,290 190,510 300,400 C410,290 490,510 570,400" stroke="#f1efed" stroke-opacity=".10" stroke-width="2"/>
+    <path d="M30,470 C110,380 190,560 300,470 C410,380 490,560 570,470" stroke="#f1efed" stroke-opacity=".08" stroke-width="2"/>
+    <path d="M30,330 C110,240 190,420 300,330 C410,240 490,420 570,330" stroke="#f1efed" stroke-opacity=".08" stroke-width="2"/>
+    <path d="M30,400 C110,290 190,510 300,400 C410,290 490,510 570,400" stroke="#ed3342" stroke-opacity=".75" stroke-width="3"/>
+  </g>
+  <g fill="#f1efed" fill-opacity=".16">
+    <rect x="120" y="250" width="2" height="300"/><rect x="300" y="250" width="2" height="300"/><rect x="480" y="250" width="2" height="300"/>
+  </g>
+  <text x="60" y="742" font-family="monospace" font-size="19" fill="#f1efed" fill-opacity=".38" letter-spacing="3">MUSIC / 02</text>
+</svg>

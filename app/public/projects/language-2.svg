@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#15151a"/><stop offset="1" stop-color="#0b0b0c"/>
+    </linearGradient>
+    <pattern id="g" width="44" height="44" patternUnits="userSpaceOnUse">
+      <path d="M44 0H0v44" fill="none" stroke="#f1efed" stroke-opacity=".05"/>
+    </pattern>
+  </defs>
+  <rect width="600" height="800" fill="url(#bg)"/>
+  <rect width="600" height="800" fill="url(#g)"/>
+  <g font-family="monospace" font-size="42" text-anchor="middle">
+    <g fill="#f1efed" fill-opacity=".16">
+      <text x="140" y="300">A</text><text x="250" y="300">B</text><text x="360" y="300">C</text><text x="470" y="300">Д</text>
+      <text x="140" y="400">Е</text><text x="250" y="400">Ё</text><text x="470" y="400">А</text>
+      <text x="140" y="500">Б</text><text x="250" y="500">В</text><text x="360" y="500">Г</text>
+      <text x="140" y="600">Δ</text><text x="360" y="600">Λ</text><text x="470" y="600">Ω</text>
+    </g>
+    <text x="360" y="400" fill="#ed3342" fill-opacity=".8">Ж</text>
+    <text x="470" y="500" fill="#ed3342" fill-opacity=".7">Я</text>
+    <text x="250" y="600" fill="#ed3342" fill-opacity=".6">文</text>
+  </g>
+  <rect x="112" y="262" width="386" height="368" fill="none" stroke="#f1efed" stroke-opacity=".12" stroke-dasharray="4 8"/>
+  <text x="60" y="742" font-family="monospace" font-size="19" fill="#f1efed" fill-opacity=".38" letter-spacing="3">LANGUAGE / 02</text>
+</svg>

@@ -1,0 +1,38 @@
+.circular-carousel {
+  --carousel-yaw: 0deg;
+  --carousel-pitch: 0deg;
+  position: relative;
+  width: 100%;
+  height: 440px;
+  overflow: hidden;
+  isolation: isolate;
+  outline: none;
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+}
+.circular-carousel:active { cursor: grabbing; }
+.circular-carousel:focus-visible { outline: 1px solid rgba(227,59,50,.75); outline-offset: -2px; }
+.circular-carousel__camera { position: absolute; inset: 0; perspective: 1800px; perspective-origin: 50% 44%; transform-style: preserve-3d; transform: rotateX(var(--carousel-pitch)) rotateY(var(--carousel-yaw)); transition: transform .28s ease-out; }
+.circular-carousel__ring { position: absolute; top: 43%; left: 50%; width: 0; height: 0; transform-style: preserve-3d; will-change: transform; }
+.circular-carousel__card { position: absolute; top: 0; left: 0; display: block; width: var(--carousel-width); height: var(--carousel-height); overflow: hidden; padding: 0; border: 1px solid rgba(255,255,255,.2); border-radius: var(--carousel-radius); background: #181112; color: #f3efed; backface-visibility: hidden; transform-style: preserve-3d; cursor: pointer; animation: carousel-rise .8s cubic-bezier(.2,.75,.2,1) both; animation-delay: calc(var(--card-index) * 65ms); }
+.circular-carousel__card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: grayscale(.38) saturate(.78) brightness(.76); transition: filter .5s ease, transform .7s cubic-bezier(.2,.75,.2,1); }
+.circular-carousel__card:hover img { filter: grayscale(.12) saturate(.9) brightness(.96); transform: scale(1.06); }
+.circular-carousel__card::after { position: absolute; z-index: 1; inset: 0; content: ''; pointer-events: none; background: linear-gradient(180deg, rgba(5,5,5,.12), rgba(12,8,9,.05) 40%, rgba(5,4,5,.86)), linear-gradient(35deg, rgba(120,20,20,.14), transparent 55%); }
+.circular-carousel__shade { position: absolute; z-index: 2; inset: 0; background: var(--carousel-fade); opacity: var(--card-shade); pointer-events: none; }
+.circular-carousel__caption { position: absolute; z-index: 3; right: 16px; bottom: 22px; left: 16px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; pointer-events: none; animation: carousel-caption-in .4s both; }
+.circular-carousel__caption strong { color: #f5f0ed; font-size: 14px; font-weight: 500; }
+.circular-carousel__caption > span { color: rgba(255,255,255,.53); font: 10px var(--mono); letter-spacing: 1.4px; text-transform: uppercase; }
+.circular-carousel__caption small { margin-top: 3px; color: rgba(255,255,255,.5); font: 10px var(--mono); }
+.circular-carousel__caption i { padding-inline: 5px; color: var(--red); font-style: normal; }
+@keyframes carousel-rise { from { opacity: 0; filter: blur(3px); translate: 0 28px; } to { opacity: 1; filter: blur(0); translate: 0 0; } }
+@keyframes carousel-caption-in { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 720px) {
+  .circular-carousel { height: 340px; }
+  .circular-carousel__ring { top: 40%; }
+  .circular-carousel__caption { bottom: 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .circular-carousel__card, .circular-carousel__caption { animation: none; }
+  .circular-carousel__camera, .circular-carousel__card img { transition: none; }
+}

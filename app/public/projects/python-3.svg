@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#141419"/><stop offset="1" stop-color="#0a0a0b"/>
+    </linearGradient>
+    <pattern id="g" width="44" height="44" patternUnits="userSpaceOnUse">
+      <path d="M44 0H0v44" fill="none" stroke="#f1efed" stroke-opacity=".05"/>
+    </pattern>
+  </defs>
+  <rect width="600" height="800" fill="url(#bg)"/>
+  <rect width="600" height="800" fill="url(#g)"/>
+  <text x="150" y="360" font-family="Georgia,serif" font-size="260" fill="#f1efed" fill-opacity=".06" text-anchor="middle">{ }</text>
+  <g font-family="monospace" font-size="20">
+    <text x="150" y="330" fill="#ed3342" fill-opacity=".7">def</text>
+    <text x="205" y="330" fill="#7fbcce" fill-opacity=".8">guess():</text>
+    <text x="170" y="380" fill="#f1efed" fill-opacity=".42">import random</text>
+    <text x="170" y="425" fill="#f1efed" fill-opacity=".42">n = randint(1, 100)</text>
+    <text x="170" y="470" fill="#f1efed" fill-opacity=".42">while True:</text>
+    <text x="200" y="515" fill="#8ef0c4" fill-opacity=".7">check(input())</text>
+  </g>
+  <g stroke="#f1efed" stroke-opacity=".12" stroke-width="2" fill="none">
+    <path d="M150,360 C150,360 150,560 150,600"/>
+  </g>
+  <rect x="200" y="532" width="9" height="9" fill="#8ef0c4" fill-opacity=".7"/>
+  <text x="60" y="742" font-family="monospace" font-size="19" fill="#f1efed" fill-opacity=".38" letter-spacing="3">PYTHON / 03</text>
+</svg>

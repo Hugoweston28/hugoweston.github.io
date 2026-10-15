@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#17171b"/><stop offset="1" stop-color="#0b0b0c"/>
+    </linearGradient>
+    <pattern id="g" width="44" height="44" patternUnits="userSpaceOnUse">
+      <path d="M44 0H0v44" fill="none" stroke="#f1efed" stroke-opacity=".05"/>
+    </pattern>
+  </defs>
+  <rect width="600" height="800" fill="url(#bg)"/>
+  <rect width="600" height="800" fill="url(#g)"/>
+  <text x="300" y="470" font-family="Georgia,serif" font-size="340" fill="#f1efed" fill-opacity=".05" text-anchor="middle">文</text>
+  <g fill="#f1efed">
+    <rect x="150" y="250" width="300" height="10" fill-opacity=".22"/>
+    <rect x="150" y="288" width="360" height="8" fill-opacity=".13"/>
+    <rect x="150" y="318" width="230" height="8" fill-opacity=".11"/>
+    <rect x="150" y="348" width="320" height="8" fill-opacity=".13"/>
+    <rect x="150" y="560" width="280" height="8" fill-opacity=".11"/>
+    <rect x="150" y="590" width="340" height="8" fill-opacity=".13"/>
+  </g>
+  <rect x="150" y="250" width="72" height="10" fill="#ed3342" fill-opacity=".85"/>
+  <rect x="150" y="560" width="48" height="8" fill="#ed3342" fill-opacity=".6"/>
+  <text x="60" y="742" font-family="monospace" font-size="19" fill="#f1efed" fill-opacity=".38" letter-spacing="3">LANGUAGE / 01</text>
+</svg>
